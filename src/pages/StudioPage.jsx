@@ -4,6 +4,7 @@ import { VoucherForm } from '../components/VoucherForm';
 import { BulkGeneratorModal } from '../components/BulkGeneratorModal';
 import { LoadingOverlay } from '../components/LoadingOverlay';
 import { exportVoucherPNG, exportVoucherPDF } from '../utils/voucherExporter';
+import { saveVoucherAPI } from '../services/api';
 import confetti from 'canvas-confetti';
 import { 
   ZoomIn, 
@@ -59,7 +60,7 @@ export const StudioPage = ({
       await new Promise(r => setTimeout(r, 200)); // Allow UI to render loading state
       await exportVoucherPNG(voucherData);
 
-      // Save to admin register
+      // Save to admin register & MongoDB database
       const newEntry = {
         ...voucherData,
         id: `voucher-${Date.now()}`,
@@ -67,13 +68,14 @@ export const StudioPage = ({
         mode: voucherMode,
         savedAt: new Date().toLocaleDateString('en-GB')
       };
+      saveVoucherAPI(newEntry);
       setSavedVouchers(prev => [newEntry, ...prev]);
 
       // AUTO INCREMENT TO NEXT SERIAL
       const nextNo = incrementToNextSerial();
 
       confetti({ particleCount: 100, spread: 80, origin: { y: 0.7 } });
-      showToast(`Downloaded ${currentNo} PNG & advanced to next voucher: ${nextNo}!`);
+      showToast(`Downloaded ${currentNo} PNG & saved to database (${nextNo})!`);
     } catch (err) {
       console.error('Error generating PNG:', err);
       showToast('Failed to generate PNG image', 'error');
@@ -93,7 +95,7 @@ export const StudioPage = ({
       await new Promise(r => setTimeout(r, 200)); // Allow UI to render loading state
       await exportVoucherPDF(voucherData);
 
-      // Save to admin register
+      // Save to admin register & MongoDB database
       const newEntry = {
         ...voucherData,
         id: `voucher-${Date.now()}`,
@@ -101,13 +103,14 @@ export const StudioPage = ({
         mode: voucherMode,
         savedAt: new Date().toLocaleDateString('en-GB')
       };
+      saveVoucherAPI(newEntry);
       setSavedVouchers(prev => [newEntry, ...prev]);
 
       // AUTO INCREMENT TO NEXT SERIAL
       const nextNo = incrementToNextSerial();
 
       confetti({ particleCount: 70, spread: 60, origin: { y: 0.7 } });
-      showToast(`Downloaded ${currentNo} PDF & advanced to next voucher: ${nextNo}!`);
+      showToast(`Downloaded ${currentNo} PDF & saved to database (${nextNo})!`);
     } catch (err) {
       console.error('Error generating PDF:', err);
       showToast('Failed to generate PDF document', 'error');
@@ -124,9 +127,10 @@ export const StudioPage = ({
 
   // Bulk generated handler
   const handleBulkGenerated = (list) => {
+    saveVoucherAPI(list);
     setSavedVouchers(prev => [...list, ...prev]);
     setSerialCounter(prev => prev + list.length);
-    showToast(`Generated ${list.length} vouchers in batch!`);
+    showToast(`Generated & stored ${list.length} vouchers in database!`);
   };
 
   // Load selected voucher from batch list

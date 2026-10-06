@@ -19,6 +19,7 @@ import {
   exportBatchVouchersPDF, 
   exportBatchVouchersZIP 
 } from '../utils/voucherExporter';
+import { saveVoucherAPI } from '../services/api';
 
 export const BulkGeneratorModal = ({ 
   isOpen, 
@@ -63,6 +64,7 @@ export const BulkGeneratorModal = ({
     }
 
     setGeneratedList(list);
+    saveVoucherAPI(list);
     setIsGenerating(false);
     setExportingMessage('');
     confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });

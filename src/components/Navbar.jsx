@@ -4,11 +4,12 @@ import {
   ShieldCheck, 
   LayoutDashboard,
   LogOut,
-  QrCode
+  QrCode,
+  BookmarkCheck
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-export const Navbar = ({ onLogout, onOpenScanModal }) => {
+export const Navbar = ({ onLogout, onOpenScanModal, onOpenLibrary, savedCount = 0 }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const isAdminPath = location.pathname === '/admin';
@@ -63,8 +64,22 @@ export const Navbar = ({ onLogout, onOpenScanModal }) => {
         </div>
       </div>
 
-      {/* RIGHT ACTIONS: SCAN & SIGN OUT */}
+      {/* RIGHT ACTIONS: SAVED LIBRARY, SCAN & SIGN OUT */}
       <div className="flex items-center gap-3">
+        {onOpenLibrary && (
+          <button
+            onClick={onOpenLibrary}
+            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl border border-slate-250 flex items-center gap-1.5 transition"
+            title="View all saved vouchers in database"
+          >
+            <BookmarkCheck className="w-4 h-4 text-amber-600" />
+            <span>Saved Vouchers</span>
+            <span className="bg-amber-500 text-slate-950 px-1.5 py-0.5 rounded-full text-[10px] font-black">
+              {savedCount}
+            </span>
+          </button>
+        )}
+
         {onOpenScanModal && (
           <button
             onClick={onOpenScanModal}

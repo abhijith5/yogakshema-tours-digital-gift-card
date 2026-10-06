@@ -5,13 +5,16 @@ import { LoginPage } from './pages/LoginPage';
 import { StudioPage } from './pages/StudioPage';
 import { AdminPage } from './pages/AdminPage';
 import { ScanAndAddVoucherModal } from './components/ScanAndAddVoucherModal';
+import { SavedVouchersDrawer } from './components/SavedVouchersDrawer';
 import { exportVoucherPNG, exportVoucherPDF } from './utils/voucherExporter';
 import confetti from 'canvas-confetti';
 import { 
   fetchConfigAPI, 
   updateConfigAPI, 
   fetchVouchersAPI, 
-  saveVoucherAPI 
+  saveVoucherAPI,
+  deleteVoucherAPI,
+  clearAllVouchersAPI
 } from './services/api';
 
 function AppContent() {
@@ -27,8 +30,23 @@ function AppContent() {
     return localStorage.getItem('ytt_admin_password') || 'admin123';
   });
 
-  // Modal state for Scanning / Tracking pre-printed cards
+  // Modal & Drawer states
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  // Delete single voucher from state & MongoDB
+  const handleDeleteVoucher = (id) => {
+    deleteVoucherAPI(id);
+    setSavedVouchers(prev => prev.filter(v => (v.id || v.voucherNo) !== id));
+  };
+
+  // Clear all vouchers from state & MongoDB
+  const handleClearAllVouchers = () => {
+    if (window.confirm('Are you sure you want to clear all vouchers from MongoDB database?')) {
+      clearAllVouchersAPI();
+      setSavedVouchers([]);
+    }
+  };
 
   // Serial counter state
   const [serialCounter, setSerialCounter] = useState(() => {
@@ -227,6 +245,7 @@ function AppContent() {
           onNextSerial={incrementToNextSerial}
           onLogout={handleLogout}
           onOpenScanModal={() => setIsScanModalOpen(true)}
+          onOpenLibrary={() => setIsDrawerOpen(true)}
           savedCount={savedVouchers.length}
           onDownloadPNG={handleDownloadPNG}
           onDownloadPDF={handleDownloadPDF}
@@ -252,6 +271,18 @@ function AppContent() {
         onClose={() => setIsScanModalOpen(false)}
         savedVouchers={savedVouchers}
         onAddVoucher={handleAddScannedVoucher}
+      />
+
+      {/* SAVED VOUCHERS DRAWER */}
+      <SavedVouchersDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        savedVouchers={savedVouchers}
+        onLoadVoucher={(item) => {
+          setVoucherData(item);
+        }}
+        onDeleteVoucher={handleDeleteVoucher}
+        onClearAll={handleClearAllVouchers}
       />
 
       {/* ROUTE DEFINITIONS */}
