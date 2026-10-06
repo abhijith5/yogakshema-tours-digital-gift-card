@@ -13,7 +13,9 @@ import {
   TrendingUp, 
   IndianRupee,
   QrCode,
-  Tag
+  Tag,
+  Loader2,
+  Save
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { updateVoucherStatusAPI, updateConfigAPI } from '../services/api';
@@ -112,30 +114,79 @@ export const AdminPage = ({
     document.body.removeChild(link);
   };
 
-  // Handle password change
-  const handleChangePassword = (e) => {
+  // Sequence config loading states & handlers
+  const [isSavingSeq, setIsSavingSeq] = useState(false);
+  const [isResettingSeq, setIsResettingSeq] = useState(false);
+  const [seqMsg, setSeqMsg] = useState(null);
+  const [isUpdatingPass, setIsUpdatingPass] = useState(false);
+
+  const handleSaveSequenceConfig = async (e) => {
+    if (e) e.preventDefault();
+    setIsSavingSeq(true);
+    setSeqMsg(null);
+    try {
+      await new Promise(r => setTimeout(r, 200)); // Click loading animation
+      setPrefix(prefix);
+      setSerialCounter(serialCounter);
+      await updateConfigAPI({ serialCounter, prefix });
+      setSeqMsg({ type: 'success', text: 'Serial Counter Configuration saved & synced to MongoDB database!' });
+    } catch (err) {
+      setSeqMsg({ type: 'error', text: 'Failed to update configuration' });
+    } finally {
+      setIsSavingSeq(false);
+      setTimeout(() => setSeqMsg(null), 4000);
+    }
+  };
+
+  const handleResetCounterClick = async () => {
+    setIsResettingSeq(true);
+    setSeqMsg(null);
+    try {
+      await new Promise(r => setTimeout(r, 250)); // Click loading animation
+      setSerialCounter(1);
+      await updateConfigAPI({ serialCounter: 1, prefix });
+      setSeqMsg({ type: 'success', text: 'Counter reset to #1 (0001) and saved to MongoDB!' });
+    } catch (err) {
+      setSeqMsg({ type: 'error', text: 'Failed to reset counter' });
+    } finally {
+      setIsResettingSeq(false);
+      setTimeout(() => setSeqMsg(null), 4000);
+    }
+  };
+
+  // Handle password change with click loading action
+  const handleChangePassword = async (e) => {
     e.preventDefault();
     const currentValid = storedPassword || 'admin123';
     
     if (currentPass !== currentValid) {
-      setPassMsg('Current password is incorrect.');
+      setPassMsg({ type: 'error', text: 'Current password is incorrect.' });
       return;
     }
     if (newPass.length < 4) {
-      setPassMsg('New password must be at least 4 characters long.');
+      setPassMsg({ type: 'error', text: 'New password must be at least 4 characters long.' });
       return;
     }
     if (newPass !== confirmPass) {
-      setPassMsg('New passwords do not match.');
+      setPassMsg({ type: 'error', text: 'New passwords do not match.' });
       return;
     }
 
-    setStoredPassword(newPass);
-    localStorage.setItem('ytt_admin_password', newPass);
-    setPassMsg('Password updated successfully!');
-    setCurrentPass('');
-    setNewPass('');
-    setConfirmPass('');
+    setIsUpdatingPass(true);
+    try {
+      await new Promise(r => setTimeout(r, 300));
+      setStoredPassword(newPass);
+      localStorage.setItem('ytt_admin_password', newPass);
+      await updateConfigAPI({ adminPassword: newPass });
+      setPassMsg({ type: 'success', text: 'Admin password updated & synced to MongoDB database!' });
+      setCurrentPass('');
+      setNewPass('');
+      setConfirmPass('');
+    } catch (err) {
+      setPassMsg({ type: 'error', text: 'Failed to update password' });
+    } finally {
+      setIsUpdatingPass(false);
+    }
   };
 
   return (
@@ -414,10 +465,21 @@ export const AdminPage = ({
           {/* TAB 2: SEQUENCE CONFIG */}
           {activeTab === 'sequence' && (
             <div className="p-8 max-w-xl mx-auto w-full space-y-6">
-              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-5">
+              <form onSubmit={handleSaveSequenceConfig} className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-5">
                 <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide flex items-center gap-2">
                   <Settings2 className="w-4 h-4 text-amber-500" /> Serial Counter Configuration
                 </h4>
+
+                {seqMsg && (
+                  <div className={`p-3.5 rounded-xl text-xs font-bold border ${
+                    seqMsg.type === 'success' 
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300 flex items-center gap-2' 
+                      : 'bg-red-50 text-red-800 border-red-300'
+                  }`}>
+                    {seqMsg.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />}
+                    {seqMsg.text}
+                  </div>
+                )}
 
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">
@@ -447,16 +509,36 @@ export const AdminPage = ({
                   />
                 </div>
 
-                <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
-                  <span className="text-xs text-slate-500">Reset sequence back to #1:</span>
+                <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row gap-3 justify-between items-center">
                   <button
-                    onClick={() => setSerialCounter(1)}
-                    className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold rounded-lg transition"
+                    type="button"
+                    onClick={handleResetCounterClick}
+                    disabled={isResettingSeq || isSavingSeq}
+                    className="w-full sm:w-auto px-4 py-2.5 bg-slate-200 hover:bg-slate-300 disabled:opacity-50 text-slate-800 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5"
                   >
+                    {isResettingSeq ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
                     Reset Counter to 1
                   </button>
+
+                  <button
+                    type="submit"
+                    disabled={isSavingSeq || isResettingSeq}
+                    className="w-full sm:w-auto px-6 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-2"
+                  >
+                    {isSavingSeq ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                        Saving Configuration...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 text-amber-400" />
+                        Save & Apply Configuration
+                      </>
+                    )}
+                  </button>
                 </div>
-              </div>
+              </form>
             </div>
           )}
 
@@ -469,8 +551,13 @@ export const AdminPage = ({
                 </h4>
 
                 {passMsg && (
-                  <div className="p-3 rounded-lg text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                    {passMsg}
+                  <div className={`p-3.5 rounded-xl text-xs font-bold border ${
+                    passMsg.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300 flex items-center gap-2'
+                      : 'bg-red-50 text-red-800 border-red-300'
+                  }`}>
+                    {passMsg.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />}
+                    {passMsg.text || passMsg}
                   </div>
                 )}
 
@@ -509,9 +596,17 @@ export const AdminPage = ({
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow transition"
+                  disabled={isUpdatingPass}
+                  className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-2"
                 >
-                  Update Admin Password
+                  {isUpdatingPass ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                      Updating Password...
+                    </>
+                  ) : (
+                    'Update Admin Password'
+                  )}
                 </button>
               </form>
             </div>
