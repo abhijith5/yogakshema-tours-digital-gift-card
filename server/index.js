@@ -10,9 +10,13 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI;
+const CLIENT_URL = process.env.CLIENT_URL;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: CLIENT_URL ? (CLIENT_URL.includes(',') ? CLIENT_URL.split(',').map(url => url.trim()) : CLIENT_URL) : '*',
+  credentials: true
+}));
 app.use(express.json({ limit: '10mb' }));
 
 // Helper to ensure initial config document exists in MongoDB
@@ -30,14 +34,18 @@ async function getOrCreateConfig() {
 }
 
 // Connect to MongoDB
-mongoose.connect(MONGODB_URI)
-  .then(() => {
-    console.log(' Successfully connected to MongoDB Atlas database!');
-    getOrCreateConfig();
-  })
-  .catch((err) => {
-    console.error(' MongoDB Connection Error:', err);
-  });
+if (!MONGODB_URI) {
+  console.error('⚠️ WARNING: MONGODB_URI environment variable is not defined!');
+} else {
+  mongoose.connect(MONGODB_URI)
+    .then(() => {
+      console.log('⚡ Successfully connected to MongoDB Atlas database!');
+      getOrCreateConfig();
+    })
+    .catch((err) => {
+      console.error('❌ MongoDB Connection Error:', err);
+    });
+}
 
 // --- REST API ENDPOINTS ---
 

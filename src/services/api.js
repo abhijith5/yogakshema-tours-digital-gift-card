@@ -1,4 +1,10 @@
-const API_BASE = '/api';
+const RENDER_BACKEND_URL = 'https://yogakshema-tours-digital-gift-card.onrender.com';
+
+const BASE_URL = import.meta.env.VITE_API_BASE_URL
+  ? import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '')
+  : (import.meta.env.DEV ? '' : RENDER_BACKEND_URL);
+
+const API_BASE = `${BASE_URL}/api`;
 
 /**
  * Health check

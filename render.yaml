@@ -1,0 +1,31 @@
+services:
+  # -------------------------------------------------------------
+  # 1. Express Backend Web Service
+  # -------------------------------------------------------------
+  - type: web
+    name: ytt-coupan-server
+    env: node
+    region: singapore
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: MONGODB_URI
+        sync: false
+      - key: CLIENT_URL
+        sync: false
+
+  # -------------------------------------------------------------
+  # 2. Vite React Frontend Static Site
+  # -------------------------------------------------------------
+  - type: web
+    name: ytt-coupan-client
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://yogakshema-tours-digital-gift-card.onrender.com
