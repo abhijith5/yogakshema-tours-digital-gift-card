@@ -66,26 +66,26 @@ export const generateVoucherCanvasDataUrl = (voucherData, scaleFactor = 3) => {
       ctx.fillStyle = fontColor;
       ctx.textBaseline = 'middle';
 
-      // Field 1: Voucher No (Line 1 underline is at Y = 264px)
+      // Field 1: Voucher No (Line 1 underline is at Y = 270px)
       const f1XPos = (208 + f1X) * scaleFactor;
-      const f1YPos = (248 + f1Y) * scaleFactor;
+      const f1YPos = (247 + f1Y) * scaleFactor;
       ctx.fillText(voucherNo, f1XPos, f1YPos);
 
-      // Field 2: Voucher Value (Line 2 underline is at Y = 325px; sits right after ₹)
+      // Field 2: Voucher Value (Line 2 underline is at Y = 331px; sits right after ₹)
       ctx.font = `900 ${fontSize + (3 * scaleFactor)}px ${fontFamily}`;
-      const f2XPos = (248 + f2X) * scaleFactor;
-      const f2YPos = (308 + f2Y) * scaleFactor;
+      const f2XPos = (260 + f2X) * scaleFactor;
+      const f2YPos = (307 + f2Y) * scaleFactor;
       ctx.fillText(formattedValue, f2XPos, f2YPos);
 
-      // Field 3: Date of Issue (Line 3 underline is at Y = 384px)
+      // Field 3: Date of Issue (Line 3 underline is at Y = 370px)
       ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
       const f3XPos = (208 + f3X) * scaleFactor;
-      const f3YPos = (367 + f3Y) * scaleFactor;
+      const f3YPos = (353 + f3Y) * scaleFactor;
       ctx.fillText(issueDate, f3XPos, f3YPos);
 
-      // Field 4: Valid Until (Line 4 underline is at Y = 444px)
+      // Field 4: Valid Until (Line 4 underline is at Y = 414px)
       const f4XPos = (208 + f4X) * scaleFactor;
-      const f4YPos = (427 + f4Y) * scaleFactor;
+      const f4YPos = (398 + f4Y) * scaleFactor;
       ctx.fillText(validUntil, f4XPos, f4YPos);
 
       resolve(canvas.toDataURL('image/png', 1.0));

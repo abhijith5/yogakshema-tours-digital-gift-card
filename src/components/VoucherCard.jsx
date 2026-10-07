@@ -56,12 +56,12 @@ export const VoucherCard = React.forwardRef(({ voucherData }, ref) => {
 
       {/* 2. DYNAMIC OVERLAY FIELDS WITH INDIVIDUAL FIELD POSITIONING */}
       
-      {/* FIELD 1: Voucher No. (Line 1 underline is at Y = 264px) */}
+      {/* FIELD 1: Voucher No. (Line 1 underline is at Y = 270px) */}
       <div 
         className="absolute z-10 flex items-center justify-start tracking-wider font-extrabold"
         style={{
           left: `${208 + f1X}px`,
-          top: `${236 + f1Y}px`,
+          top: `${235 + f1Y}px`,
           width: '190px',
           height: '24px',
           fontSize: `${fontSize}px`,
@@ -73,12 +73,12 @@ export const VoucherCard = React.forwardRef(({ voucherData }, ref) => {
         <span className="truncate">{voucherNo}</span>
       </div>
 
-      {/* FIELD 2: Voucher Value (Line 2 underline is at Y = 325px; sits right after ₹) */}
+      {/* FIELD 2: Voucher Value (Line 2 underline is at Y = 331px; sits right after ₹) */}
       <div 
         className="absolute z-10 flex items-center justify-start tracking-wide font-black"
         style={{
-          left: `${248 + f2X}px`,
-          top: `${295 + f2Y}px`,
+          left: `${260 + f2X}px`,
+          top: `${294 + f2Y}px`,
           width: '120px',
           height: '26px',
           fontSize: `${fontSize + 3}px`,
@@ -90,12 +90,12 @@ export const VoucherCard = React.forwardRef(({ voucherData }, ref) => {
         <span className="truncate">{formattedValue}</span>
       </div>
 
-      {/* FIELD 3: Date of Issue (Line 3 underline is at Y = 384px) */}
+      {/* FIELD 3: Date of Issue (Line 3 underline is at Y = 370px) */}
       <div 
         className="absolute z-10 flex items-center justify-start tracking-wide font-bold"
         style={{
           left: `${208 + f3X}px`,
-          top: `${354 + f3Y}px`,
+          top: `${341 + f3Y}px`,
           width: '190px',
           height: '24px',
           fontSize: `${fontSize}px`,
@@ -107,12 +107,12 @@ export const VoucherCard = React.forwardRef(({ voucherData }, ref) => {
         <span className="truncate">{issueDate}</span>
       </div>
 
-      {/* FIELD 4: Valid Until (Line 4 underline is at Y = 444px) */}
+      {/* FIELD 4: Valid Until (Line 4 underline is at Y = 414px) */}
       <div 
         className="absolute z-10 flex items-center justify-start tracking-wide font-bold"
         style={{
           left: `${208 + f4X}px`,
-          top: `${414 + f4Y}px`,
+          top: `${386 + f4Y}px`,
           width: '190px',
           height: '24px',
           fontSize: `${fontSize}px`,
