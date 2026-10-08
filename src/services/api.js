@@ -85,15 +85,37 @@ export async function fetchVouchersAPI() {
 }
 
 /**
+ * Check if voucher number exists in MongoDB database
+ */
+export async function checkVoucherExistsAPI(voucherNo) {
+  try {
+    const cleanNo = (voucherNo || '').trim().toUpperCase();
+    if (!cleanNo) return false;
+    const res = await fetch(`${API_BASE}/vouchers/check/${encodeURIComponent(cleanNo)}`);
+    if (!res.ok) return false;
+    const data = await res.json();
+    return data.exists === true;
+  } catch (err) {
+    console.warn('API checkVoucherExists error:', err.message);
+    return false;
+  }
+}
+
+/**
  * Save single or batch vouchers to MongoDB
  */
-export async function saveVoucherAPI(voucherOrArray) {
+export async function saveVoucherAPI(voucherOrArray, checkUnique = false) {
   try {
-    const res = await fetch(`${API_BASE}/vouchers`, {
+    const url = checkUnique ? `${API_BASE}/vouchers?checkUnique=true` : `${API_BASE}/vouchers`;
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(voucherOrArray)
     });
+    if (res.status === 409) {
+      const errData = await res.json();
+      return { success: false, isDuplicate: true, error: errData.error };
+    }
     if (!res.ok) throw new Error('Failed to save voucher');
     return await res.json();
   } catch (err) {

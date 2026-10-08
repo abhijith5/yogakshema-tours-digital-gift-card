@@ -13,6 +13,7 @@ import {
   updateConfigAPI, 
   fetchVouchersAPI, 
   saveVoucherAPI,
+  checkVoucherExistsAPI,
   deleteVoucherAPI,
   clearAllVouchersAPI
 } from './services/api';
@@ -33,6 +34,9 @@ function AppContent() {
   // Modal & Drawer states
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  // Saved vouchers library (stored directly in MongoDB Database)
+  const [savedVouchers, setSavedVouchers] = useState([]);
 
   // Delete single voucher from state & MongoDB
   const handleDeleteVoucher = (id) => {
@@ -139,37 +143,58 @@ function AppContent() {
     }));
   }, [serialCounter, prefix]);
 
-  // Saved vouchers library
-  const [savedVouchers, setSavedVouchers] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ytt_saved_vouchers');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      return [];
+  // Save current voucher directly to MongoDB database with uniqueness check
+  const handleSaveCurrentVoucherToDatabase = async (targetVoucher = voucherData) => {
+    const cleanNo = (targetVoucher.voucherNo || '').trim().toUpperCase();
+    if (!cleanNo) {
+      alert('Voucher serial number is required.');
+      return { success: false, message: 'Voucher serial number is required.' };
     }
-  });
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('ytt_saved_vouchers', JSON.stringify(savedVouchers));
-    } catch (e) {
-      console.error('Failed to save vouchers library:', e);
+    // Check if voucher number is already present in state or database
+    const existsInState = savedVouchers.some(
+      v => (v.voucherNo || '').trim().toUpperCase() === cleanNo
+    );
+    const existsInDB = await checkVoucherExistsAPI(cleanNo);
+
+    if (existsInState || existsInDB) {
+      alert(`Voucher No "${cleanNo}" is already present in the database! It will not be saved again because serial numbers must be unique.`);
+      return { success: false, isDuplicate: true, message: `Voucher "${cleanNo}" is already present in database.` };
     }
-  }, [savedVouchers]);
+
+    const newEntry = {
+      ...targetVoucher,
+      voucherNo: cleanNo,
+      id: `voucher-${Date.now()}`,
+      status: targetVoucher.status || 'active',
+      savedAt: new Date().toLocaleDateString('en-GB')
+    };
+
+    const res = await saveVoucherAPI(newEntry, true);
+    if (res && res.success) {
+      const savedItem = res.data || newEntry;
+      setSavedVouchers(prev => [savedItem, ...prev.filter(v => (v.voucherNo || '').trim().toUpperCase() !== cleanNo)]);
+      incrementToNextSerial();
+      confetti({ particleCount: 60, spread: 50, origin: { y: 0.8 } });
+      alert(`Voucher "${cleanNo}" saved successfully to database!`);
+      return { success: true, data: savedItem };
+    } else if (res && res.isDuplicate) {
+      alert(`Voucher No "${cleanNo}" is already present in the database! Cannot save duplicate serial number.`);
+      return { success: false, isDuplicate: true };
+    } else {
+      alert('Failed to save voucher to database. Please check your server connection.');
+      return { success: false };
+    }
+  };
 
   // Add / Update Scanned Pre-printed voucher
-  const handleAddScannedVoucher = (newVoucher) => {
-    saveVoucherAPI(newVoucher);
+  const handleAddScannedVoucher = async (newVoucher) => {
+    const res = await saveVoucherAPI(newVoucher);
+    const savedItem = (res && res.success && res.data) ? res.data : newVoucher;
     setSavedVouchers(prev => {
-      const index = prev.findIndex(
-        v => (v.voucherNo || '').trim().toUpperCase() === (newVoucher.voucherNo || '').trim().toUpperCase()
-      );
-      if (index >= 0) {
-        const updated = [...prev];
-        updated[index] = { ...updated[index], ...newVoucher };
-        return updated;
-      }
-      return [newVoucher, ...prev];
+      const cleanSerial = (savedItem.voucherNo || '').trim().toUpperCase();
+      const filtered = prev.filter(v => (v.voucherNo || '').trim().toUpperCase() !== cleanSerial);
+      return [savedItem, ...filtered];
     });
   };
 
@@ -189,14 +214,20 @@ function AppContent() {
   const handleDownloadPNG = async () => {
     try {
       await exportVoucherPNG(voucherData);
+      const cleanNo = (voucherData.voucherNo || '').trim().toUpperCase();
       const newEntry = {
         ...voucherData,
+        voucherNo: cleanNo,
         id: `voucher-${Date.now()}`,
         status: 'active',
         savedAt: new Date().toLocaleDateString('en-GB')
       };
-      saveVoucherAPI(newEntry);
-      setSavedVouchers(prev => [newEntry, ...prev]);
+      const res = await saveVoucherAPI(newEntry);
+      const savedItem = (res && res.success && res.data) ? res.data : newEntry;
+      setSavedVouchers(prev => [
+        savedItem,
+        ...prev.filter(v => (v.voucherNo || '').trim().toUpperCase() !== cleanNo)
+      ]);
       incrementToNextSerial();
       confetti({ particleCount: 100, spread: 80, origin: { y: 0.7 } });
     } catch (e) {
@@ -208,14 +239,20 @@ function AppContent() {
   const handleDownloadPDF = async () => {
     try {
       await exportVoucherPDF(voucherData);
+      const cleanNo = (voucherData.voucherNo || '').trim().toUpperCase();
       const newEntry = {
         ...voucherData,
+        voucherNo: cleanNo,
         id: `voucher-${Date.now()}`,
         status: 'active',
         savedAt: new Date().toLocaleDateString('en-GB')
       };
-      saveVoucherAPI(newEntry);
-      setSavedVouchers(prev => [newEntry, ...prev]);
+      const res = await saveVoucherAPI(newEntry);
+      const savedItem = (res && res.success && res.data) ? res.data : newEntry;
+      setSavedVouchers(prev => [
+        savedItem,
+        ...prev.filter(v => (v.voucherNo || '').trim().toUpperCase() !== cleanNo)
+      ]);
       incrementToNextSerial();
       confetti({ particleCount: 70, spread: 60, origin: { y: 0.7 } });
     } catch (e) {
@@ -250,18 +287,7 @@ function AppContent() {
           onDownloadPNG={handleDownloadPNG}
           onDownloadPDF={handleDownloadPDF}
           onPrint={() => window.print()}
-          onSaveToLibrary={() => {
-            const newEntry = {
-              ...voucherData,
-              id: `voucher-${Date.now()}`,
-              status: 'active',
-              savedAt: new Date().toLocaleDateString('en-GB')
-            };
-            saveVoucherAPI(newEntry);
-            setSavedVouchers(prev => [newEntry, ...prev]);
-            incrementToNextSerial();
-            confetti({ particleCount: 60, spread: 50, origin: { y: 0.8 } });
-          }}
+          onSaveToLibrary={() => handleSaveCurrentVoucherToDatabase(voucherData)}
         />
       )}
 
@@ -278,6 +304,8 @@ function AppContent() {
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         savedVouchers={savedVouchers}
+        currentVoucher={voucherData}
+        onSaveCurrentVoucher={handleSaveCurrentVoucherToDatabase}
         onLoadVoucher={(item) => {
           setVoucherData(item);
         }}
@@ -315,10 +343,12 @@ function AppContent() {
                 serialCounter={serialCounter}
                 setSerialCounter={setSerialCounter}
                 prefix={prefix}
+                setPrefix={setPrefix}
                 incrementToNextSerial={incrementToNextSerial}
                 handleResetCounter={handleResetCounter}
                 savedVouchers={savedVouchers}
                 setSavedVouchers={setSavedVouchers}
+                onSaveToDatabase={handleSaveCurrentVoucherToDatabase}
                 onOpenScanModal={() => setIsScanModalOpen(true)}
               />
             )

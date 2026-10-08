@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { VoucherCard } from '../components/VoucherCard';
 import { VoucherForm } from '../components/VoucherForm';
 import { BulkGeneratorModal } from '../components/BulkGeneratorModal';
@@ -20,7 +20,8 @@ import {
   Smartphone, 
   Layers, 
   Loader2,
-  QrCode
+  QrCode,
+  Save
 } from 'lucide-react';
 
 export const StudioPage = ({ 
@@ -29,10 +30,12 @@ export const StudioPage = ({
   serialCounter, 
   setSerialCounter, 
   prefix, 
+  setPrefix,
   incrementToNextSerial, 
   handleResetCounter, 
   savedVouchers, 
   setSavedVouchers,
+  onSaveToDatabase,
   onOpenScanModal
 }) => {
   const [voucherMode, setVoucherMode] = useState('digital');
@@ -43,6 +46,48 @@ export const StudioPage = ({
   const [toastMessage, setToastMessage] = useState(null);
 
   const voucherRef = useRef(null);
+  const canvasContainerRef = useRef(null);
+
+  // Auto-fit zoom level for mobile screens
+  const updateAutoZoom = () => {
+    if (canvasContainerRef.current) {
+      const containerWidth = canvasContainerRef.current.clientWidth - 32;
+      if (containerWidth > 0 && containerWidth < 1050) {
+        const fitScale = Math.min(0.95, Math.max(0.28, containerWidth / 1050));
+        setZoomScale(Number(fitScale.toFixed(2)));
+      } else if (containerWidth >= 1050) {
+        setZoomScale(0.95);
+      }
+    }
+  };
+
+  useEffect(() => {
+    updateAutoZoom();
+    window.addEventListener('resize', updateAutoZoom);
+    return () => window.removeEventListener('resize', updateAutoZoom);
+  }, []);
+
+  // Print Series Selector Handler (A-1000, B-2000, C-5000 -> YGT-26-series)
+  const handleSelectPrintSeries = (seriesLetter, value) => {
+    const seriesPrefix = `YGT-26-${seriesLetter.toUpperCase()}-`;
+    if (setPrefix) setPrefix(seriesPrefix);
+    setVoucherData(prev => ({
+      ...prev,
+      voucherValue: String(value)
+    }));
+  };
+
+  // Mode Change Handler (Digital vs Print)
+  const handleModeChange = (mode) => {
+    setVoucherMode(mode);
+    if (mode === 'digital') {
+      if (setPrefix) setPrefix('YTT-D-');
+    } else if (mode === 'print') {
+      if (!prefix || !prefix.startsWith('YGT-26-')) {
+        handleSelectPrintSeries('A', '1000');
+      }
+    }
+  };
 
   // Show toast notification
   const showToast = (msg, type = 'success') => {
@@ -57,10 +102,9 @@ export const StudioPage = ({
     setLoadingText(`Generating High-Resolution PNG Image for ${currentNo}...`);
 
     try {
-      await new Promise(r => setTimeout(r, 200)); // Allow UI to render loading state
+      await new Promise(r => setTimeout(r, 200));
       await exportVoucherPNG(voucherData);
 
-      // Save to admin register & MongoDB database
       const newEntry = {
         ...voucherData,
         id: `voucher-${Date.now()}`,
@@ -68,10 +112,13 @@ export const StudioPage = ({
         mode: voucherMode,
         savedAt: new Date().toLocaleDateString('en-GB')
       };
-      saveVoucherAPI(newEntry);
-      setSavedVouchers(prev => [newEntry, ...prev]);
+      const res = await saveVoucherAPI(newEntry);
+      const savedItem = (res && res.success && res.data) ? res.data : newEntry;
+      setSavedVouchers(prev => [
+        savedItem,
+        ...prev.filter(v => (v.voucherNo || '').trim().toUpperCase() !== (savedItem.voucherNo || '').trim().toUpperCase())
+      ]);
 
-      // AUTO INCREMENT TO NEXT SERIAL
       const nextNo = incrementToNextSerial();
 
       confetti({ particleCount: 100, spread: 80, origin: { y: 0.7 } });
@@ -92,10 +139,9 @@ export const StudioPage = ({
     setLoadingText(`Preparing Landscape PDF Document for ${currentNo}...`);
 
     try {
-      await new Promise(r => setTimeout(r, 200)); // Allow UI to render loading state
+      await new Promise(r => setTimeout(r, 200));
       await exportVoucherPDF(voucherData);
 
-      // Save to admin register & MongoDB database
       const newEntry = {
         ...voucherData,
         id: `voucher-${Date.now()}`,
@@ -103,10 +149,13 @@ export const StudioPage = ({
         mode: voucherMode,
         savedAt: new Date().toLocaleDateString('en-GB')
       };
-      saveVoucherAPI(newEntry);
-      setSavedVouchers(prev => [newEntry, ...prev]);
+      const res = await saveVoucherAPI(newEntry);
+      const savedItem = (res && res.success && res.data) ? res.data : newEntry;
+      setSavedVouchers(prev => [
+        savedItem,
+        ...prev.filter(v => (v.voucherNo || '').trim().toUpperCase() !== (savedItem.voucherNo || '').trim().toUpperCase())
+      ]);
 
-      // AUTO INCREMENT TO NEXT SERIAL
       const nextNo = incrementToNextSerial();
 
       confetti({ particleCount: 70, spread: 60, origin: { y: 0.7 } });
@@ -126,9 +175,10 @@ export const StudioPage = ({
   };
 
   // Bulk generated handler
-  const handleBulkGenerated = (list) => {
-    saveVoucherAPI(list);
-    setSavedVouchers(prev => [...list, ...prev]);
+  const handleBulkGenerated = async (list) => {
+    const res = await saveVoucherAPI(list);
+    const savedList = (res && res.success && Array.isArray(res.data)) ? res.data : list;
+    setSavedVouchers(prev => [...savedList, ...prev]);
     setSerialCounter(prev => prev + list.length);
     showToast(`Generated & stored ${list.length} vouchers in database!`);
   };
@@ -140,80 +190,83 @@ export const StudioPage = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col min-h-0">
       
       {/* FULL SCREEN LOADING OVERLAY */}
       {isExporting && <LoadingOverlay message={loadingText} />}
 
       {/* TOAST NOTIFICATION POPUP */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 animate-bounce">
-          <div className={`px-4 py-3 rounded-xl shadow-xl border flex items-center gap-2.5 text-xs font-bold ${
+        <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 animate-bounce max-w-[90vw]">
+          <div className={`px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl shadow-xl border flex items-center gap-2.5 text-xs font-bold ${
             toastMessage.type === 'error' 
               ? 'bg-red-900 text-red-100 border-red-700' 
               : 'bg-emerald-900 text-emerald-100 border-emerald-700'
           }`}>
             {toastMessage.type === 'error' ? (
-              <AlertCircle className="w-4 h-4 text-red-300" />
+              <AlertCircle className="w-4 h-4 text-red-300 shrink-0" />
             ) : (
-              <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" />
             )}
-            <span>{toastMessage.text}</span>
+            <span className="truncate">{toastMessage.text}</span>
           </div>
         </div>
       )}
 
       {/* VOUCHER STUDIO VIEW */}
-      <main className="flex-1 flex flex-col lg:flex-row p-4 lg:p-6 gap-6 max-w-[1800px] mx-auto w-full overflow-hidden">
+      <main className="flex-1 flex flex-col lg:flex-row p-3 sm:p-4 lg:p-6 gap-4 sm:gap-6 max-w-[1800px] mx-auto w-full overflow-y-auto lg:overflow-hidden">
         
         {/* LEFT / CENTER: VOUCHER CANVAS PREVIEW & DOWNLOAD BAR */}
-        <div className="flex-1 bg-white border border-slate-200 rounded-2xl p-4 lg:p-6 flex flex-col items-center justify-between shadow-sm relative overflow-auto">
+        <div 
+          ref={canvasContainerRef}
+          className="flex-1 bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 lg:p-6 flex flex-col items-center justify-between shadow-sm relative overflow-x-auto min-h-0"
+        >
           
           {/* CANVAS PREVIEW HEADER WITH DIGITAL / PRINT MODE TOGGLE & ZOOM */}
-          <div className="w-full flex items-center justify-between mb-4 no-print flex-wrap gap-3">
+          <div className="w-full flex items-center justify-between mb-3 sm:mb-4 no-print flex-col sm:flex-row gap-3">
             
             {/* DIGITAL vs PRINT MODE SWITCH */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
               <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-250 shadow-inner">
                 <button
-                  onClick={() => setVoucherMode('digital')}
-                  className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition flex items-center gap-1.5 ${
+                  onClick={() => handleModeChange('digital')}
+                  className={`px-2.5 sm:px-3.5 py-1.5 text-xs font-bold rounded-lg transition flex items-center gap-1.5 ${
                     voucherMode === 'digital'
                       ? 'bg-amber-500 text-slate-950 shadow'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <Smartphone className="w-3.5 h-3.5" /> Digital Voucher
+                  <Smartphone className="w-3.5 h-3.5" /> Digital
                 </button>
 
                 <button
-                  onClick={() => setVoucherMode('print')}
-                  className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition flex items-center gap-1.5 ${
+                  onClick={() => handleModeChange('print')}
+                  className={`px-2.5 sm:px-3.5 py-1.5 text-xs font-bold rounded-lg transition flex items-center gap-1.5 ${
                     voucherMode === 'print'
                       ? 'bg-amber-500 text-slate-950 shadow'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <Printer className="w-3.5 h-3.5" /> Print Voucher
+                  <Printer className="w-3.5 h-3.5" /> Print
                 </button>
               </div>
 
-              <span className="text-xs font-mono font-extrabold bg-blue-50 text-blue-900 border border-blue-200 px-3 py-1 rounded-full">
-                Active: {voucherData.voucherNo}
+              <span className="text-[11px] sm:text-xs font-mono font-extrabold bg-blue-50 text-blue-900 border border-blue-200 px-2.5 py-1 rounded-full truncate">
+                {voucherData.voucherNo}
               </span>
             </div>
 
             {/* ZOOM CONTROL BUTTONS */}
-            <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-250 shadow-sm">
+            <div className="flex items-center gap-2 bg-slate-100 p-1 sm:p-1.5 rounded-xl border border-slate-250 shadow-sm self-end sm:self-auto">
               <button
-                onClick={() => setZoomScale(s => Math.max(0.4, s - 0.05))}
+                onClick={() => setZoomScale(s => Math.max(0.25, s - 0.05))}
                 className="p-1 text-slate-600 hover:text-slate-900 rounded hover:bg-slate-200 transition"
                 title="Zoom Out"
               >
                 <ZoomOut className="w-4 h-4" />
               </button>
               
-              <span className="text-xs font-mono font-bold text-amber-700 min-w-[45px] text-center">
+              <span className="text-xs font-mono font-bold text-amber-700 min-w-[42px] text-center">
                 {Math.round(zoomScale * 100)}%
               </span>
 
@@ -226,85 +279,132 @@ export const StudioPage = ({
               </button>
 
               <button
-                onClick={() => setZoomScale(0.95)}
-                className="p-1 text-slate-600 hover:text-slate-900 rounded hover:bg-slate-200 transition ml-1"
-                title="Reset Zoom Scale"
+                onClick={updateAutoZoom}
+                className="p-1 text-slate-600 hover:text-slate-900 rounded hover:bg-slate-200 transition ml-0.5"
+                title="Auto-Fit Zoom"
               >
                 <Maximize2 className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
 
+          {/* PRINT VOUCHER SERIES SELECTOR BAR */}
+          {voucherMode === 'print' && (
+            <div className="w-full bg-gradient-to-r from-amber-500/10 via-amber-500/15 to-amber-500/10 border border-amber-500/30 rounded-xl p-2.5 sm:p-3 mb-3 sm:mb-4 no-print flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-3 shadow-sm">
+              <div className="flex items-center gap-2 text-xs font-black text-amber-900 self-start sm:self-auto">
+                <Sparkles className="w-4 h-4 text-amber-600 animate-pulse" />
+                <span>PRINT VOUCHER SERIES:</span>
+              </div>
+
+              <div className="flex items-center gap-1.5 sm:gap-2.5 w-full sm:w-auto sm:flex-1">
+                {[
+                  { letter: 'A', name: 'Series A-1000', prefixStr: 'YGT-26-A-', value: '1000' },
+                  { letter: 'B', name: 'Series B-2000', prefixStr: 'YGT-26-B-', value: '2000' },
+                  { letter: 'C', name: 'Series C-5000', prefixStr: 'YGT-26-C-', value: '5000' },
+                ].map(s => {
+                  const isActive = prefix === s.prefixStr;
+                  return (
+                    <button
+                      key={s.letter}
+                      type="button"
+                      onClick={() => handleSelectPrintSeries(s.letter, s.value)}
+                      className={`flex-1 py-1.5 sm:py-2 px-2 sm:px-3.5 rounded-xl text-[11px] sm:text-xs font-black transition border flex flex-col sm:flex-row items-center justify-center sm:justify-between ${
+                        isActive
+                          ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md ring-2 ring-amber-400/50'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-50 hover:border-amber-300'
+                      }`}
+                    >
+                      <span>{s.name}</span>
+                      <span className="font-mono text-[10px] sm:text-[11px] opacity-90">(₹{Number(s.value).toLocaleString('en-IN')})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* GENERATED VOUCHER CARD CANVAS */}
-          <div className="flex-1 flex items-center justify-center w-full min-h-[480px] overflow-auto py-2">
+          <div className="flex-1 flex items-center justify-center w-full min-h-[320px] sm:min-h-[440px] overflow-auto py-2">
             <div 
               style={{ 
                 transform: `scale(${zoomScale})`, 
-                transformOrigin: 'center center',
+                transformOrigin: 'top center',
                 transition: 'transform 0.15s ease-out'
               }}
-              className="shadow-2xl rounded-lg border border-slate-200"
+              className="shadow-2xl rounded-lg border border-slate-200 shrink-0"
             >
               <VoucherCard ref={voucherRef} voucherData={voucherData} />
             </div>
           </div>
 
           {/* PROMINENT DOWNLOAD & ACTION BAR */}
-          <div className="w-full mt-4 p-3.5 bg-slate-900 text-white rounded-2xl shadow-lg flex items-center justify-between flex-wrap gap-3 no-print">
+          <div className="w-full mt-3 sm:mt-4 p-3 sm:p-3.5 bg-slate-900 text-white rounded-2xl shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3 no-print">
             
             {/* LEFT ACTIONS: DOWNLOAD PNG & PDF */}
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto flex-wrap sm:flex-nowrap">
               <button
                 onClick={handleDownloadPNG}
                 disabled={isExporting}
-                className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-md flex items-center gap-2 transition disabled:opacity-50"
+                className="flex-1 sm:flex-none px-4 sm:px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition disabled:opacity-50"
               >
                 {isExporting ? <Loader2 className="w-4 h-4 animate-spin text-slate-950" /> : <Download className="w-4 h-4" />}
-                <span>{isExporting ? 'Generating PNG...' : 'Download PNG Image'}</span>
+                <span>{isExporting ? 'Generating...' : 'Download PNG'}</span>
               </button>
 
               <button
                 onClick={handleDownloadPDF}
                 disabled={isExporting}
-                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-750 text-white font-bold text-xs rounded-xl border border-slate-700 flex items-center gap-2 transition disabled:opacity-50"
+                className="flex-1 sm:flex-none px-3.5 sm:px-4 py-2.5 bg-slate-800 hover:bg-slate-750 text-white font-bold text-xs rounded-xl border border-slate-700 flex items-center justify-center gap-2 transition disabled:opacity-50"
               >
                 {isExporting ? <Loader2 className="w-4 h-4 animate-spin text-red-400" /> : <FileText className="w-4 h-4 text-red-400" />}
-                <span>{isExporting ? 'Preparing PDF...' : 'Download PDF'}</span>
+                <span>{isExporting ? 'Preparing...' : 'Download PDF'}</span>
               </button>
+
+              {onSaveToDatabase && (
+                <button
+                  onClick={() => onSaveToDatabase(voucherData)}
+                  disabled={isExporting}
+                  className="px-3.5 sm:px-4 py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold text-xs rounded-xl border border-amber-500/40 flex items-center justify-center gap-2 transition disabled:opacity-50"
+                  title="Save current voucher to database with unique serial check"
+                >
+                  <Save className="w-4 h-4 text-amber-400" />
+                  <span className="hidden xs:inline">Save DB</span>
+                </button>
+              )}
 
               {voucherMode === 'print' && (
                 <button
                   onClick={handlePrint}
-                  className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow flex items-center gap-2 transition"
+                  className="px-3.5 sm:px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow flex items-center justify-center gap-2 transition"
                 >
-                  <Printer className="w-4 h-4" /> Print Voucher
+                  <Printer className="w-4 h-4" /> <span className="hidden xs:inline">Print</span>
                 </button>
               )}
             </div>
 
             {/* RIGHT ACTIONS: SCAN PRINTED, GENERATE NEXT & BATCH */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
               {onOpenScanModal && (
                 <button
                   onClick={onOpenScanModal}
-                  className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow flex items-center gap-1.5 transition"
+                  className="flex-1 sm:flex-none px-3.5 sm:px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow flex items-center justify-center gap-1.5 transition"
                 >
-                  <QrCode className="w-4 h-4" /> Scan Printed Card
+                  <QrCode className="w-4 h-4" /> <span>Scan Printed</span>
                 </button>
               )}
 
               <button
                 onClick={incrementToNextSerial}
-                className="px-4 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold text-xs rounded-xl border border-amber-500/40 flex items-center gap-1.5 transition"
+                className="flex-1 sm:flex-none px-3.5 sm:px-4 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold text-xs rounded-xl border border-amber-500/40 flex items-center justify-center gap-1.5 transition"
               >
-                <PlusCircle className="w-4 h-4 text-amber-400" /> Next Serial
+                <PlusCircle className="w-4 h-4 text-amber-400" /> <span>Next Serial</span>
               </button>
 
               <button
                 onClick={() => setIsBulkModalOpen(true)}
-                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 flex items-center gap-1.5 transition"
+                className="flex-1 sm:flex-none px-3.5 sm:px-4 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 flex items-center justify-center gap-1.5 transition"
               >
-                <Layers className="w-4 h-4 text-amber-400" /> Batch Generator
+                <Layers className="w-4 h-4 text-amber-400" /> <span>Batch</span>
               </button>
             </div>
 
@@ -319,8 +419,13 @@ export const StudioPage = ({
             setVoucherData={setVoucherData} 
             serialCounter={serialCounter}
             setSerialCounter={setSerialCounter}
+            prefix={prefix}
+            setPrefix={setPrefix}
+            voucherMode={voucherMode}
+            onSelectPrintSeries={handleSelectPrintSeries}
             onNextSerial={incrementToNextSerial}
             onResetCounter={handleResetCounter}
+            onSaveToDatabase={onSaveToDatabase}
           />
         </div>
 

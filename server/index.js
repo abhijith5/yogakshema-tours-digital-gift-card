@@ -122,10 +122,25 @@ app.get('/api/vouchers', async (req, res) => {
   }
 });
 
+// 5b. Check if voucher number already exists in database
+app.get('/api/vouchers/check/:voucherNo', async (req, res) => {
+  try {
+    const cleanNo = req.params.voucherNo.trim().toUpperCase();
+    const existing = await Voucher.findOne({ voucherNo: cleanNo });
+    if (existing) {
+      return res.json({ exists: true, voucher: existing });
+    }
+    return res.json({ exists: false });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to check voucher number', message: err.message });
+  }
+});
+
 // 6. Save or Batch Save Vouchers (Create / Upsert)
 app.post('/api/vouchers', async (req, res) => {
   try {
     const payload = req.body;
+    const checkUnique = req.query.checkUnique === 'true';
 
     if (Array.isArray(payload)) {
       // Batch save array of vouchers
@@ -148,6 +163,19 @@ app.post('/api/vouchers', async (req, res) => {
       if (!cleanNo) {
         return res.status(400).json({ error: 'Serial number (voucherNo) is required' });
       }
+
+      if (checkUnique) {
+        const existing = await Voucher.findOne({ voucherNo: cleanNo });
+        if (existing && existing.id !== payload.id) {
+          return res.status(409).json({ 
+            success: false, 
+            error: `Voucher number '${cleanNo}' already exists in database!`, 
+            isDuplicate: true,
+            existing 
+          });
+        }
+      }
+
       const filter = payload.id ? { id: payload.id } : { voucherNo: cleanNo };
       const updated = await Voucher.findOneAndUpdate(
         filter,

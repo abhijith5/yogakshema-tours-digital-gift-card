@@ -6,10 +6,10 @@ import {
   Calendar, 
   IndianRupee, 
   PlusCircle, 
-  Move, 
   SlidersHorizontal,
   User,
-  Phone
+  Phone,
+  Save
 } from 'lucide-react';
 
 export const VoucherForm = ({ 
@@ -17,8 +17,13 @@ export const VoucherForm = ({
   setVoucherData, 
   serialCounter, 
   setSerialCounter, 
+  prefix,
+  setPrefix,
+  voucherMode = 'digital',
+  onSelectPrintSeries,
   onNextSerial, 
-  onResetCounter 
+  onResetCounter,
+  onSaveToDatabase
 }) => {
   const [activeAdjustField, setActiveAdjustField] = useState('f1');
 
@@ -74,7 +79,6 @@ export const VoucherForm = ({
     const targetYear = year + Math.floor(totalMonths / 12);
     const targetMonth = (totalMonths % 12) + 1;
 
-    // Get last day of the target month
     const lastDay = new Date(targetYear, targetMonth, 0).getDate();
 
     const formattedValidUntil = `${String(lastDay).padStart(2, '0')}/${String(targetMonth).padStart(2, '0')}/${targetYear}`;
@@ -98,21 +102,34 @@ export const VoucherForm = ({
       {/* FORM HEADER */}
       <div className="bg-slate-900 text-white p-3.5 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center font-black">
+          <div className="w-8 h-8 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center font-black shrink-0">
             <FileText className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold uppercase tracking-wide">Voucher Inputs</h3>
-            <p className="text-[11px] text-slate-300">Independent X/Y controls per field</p>
+            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wide">Voucher Inputs</h3>
+            <p className="text-[10px] sm:text-[11px] text-slate-300">
+              {voucherMode === 'print' ? 'Print Mode: YGT-26-Series' : 'Digital Mode'}
+            </p>
           </div>
         </div>
+        {onSaveToDatabase && (
+          <button
+            type="button"
+            onClick={() => onSaveToDatabase(voucherData)}
+            className="px-2.5 sm:px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-slate-950 text-xs font-black rounded-lg shadow flex items-center gap-1.5 transition shrink-0"
+            title="Save current coupon directly to MongoDB Database"
+          >
+            <Save className="w-3.5 h-3.5 text-slate-950" />
+            <span className="hidden xs:inline">Save Coupon</span>
+          </button>
+        )}
       </div>
 
       {/* FORM INPUTS */}
-      <div className="p-4 space-y-4 overflow-y-auto flex-1 bg-slate-50/50">
+      <div className="p-3.5 sm:p-4 space-y-3.5 sm:space-y-4 overflow-y-auto flex-1 bg-slate-50/50">
         
         {/* FIELD 1: VOUCHER NO (AUTO INCREMENTING) */}
-        <div className="bg-white p-3.5 rounded-xl border border-amber-300 shadow-sm space-y-2">
+        <div className="bg-white p-3 sm:p-3.5 rounded-xl border border-amber-300 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
               <FileText className="w-3.5 h-3.5 text-amber-600" /> 1. Voucher Serial No.
@@ -120,7 +137,7 @@ export const VoucherForm = ({
             <button
               type="button"
               onClick={onNextSerial}
-              className="text-[11px] text-slate-950 font-bold bg-amber-500 hover:bg-amber-400 px-2.5 py-0.5 rounded flex items-center gap-1 transition shadow-sm"
+              className="text-[11px] text-slate-950 font-bold bg-amber-500 hover:bg-amber-400 px-2.5 py-1 rounded flex items-center gap-1 transition shadow-sm"
             >
               <PlusCircle className="w-3 h-3" /> Next No.
             </button>
@@ -141,18 +158,18 @@ export const VoucherForm = ({
               onClick={onResetCounter}
               className="text-amber-700 hover:text-amber-800 font-semibold underline"
             >
-              Reset to #1 (YTT-D-0001)
+              Reset (#1)
             </button>
           </div>
         </div>
 
         {/* FIELD 2: VOUCHER VALUE */}
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm space-y-2">
+        <div className="bg-white p-3 sm:p-3.5 rounded-xl border border-slate-200 shadow-sm space-y-2">
           <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
             <IndianRupee className="w-3.5 h-3.5 text-amber-600" /> 2. Voucher Value (₹)
           </label>
           <div className="relative">
-            <span className="absolute left-3 top-2 text-slate-400 font-black">₹</span>
+            <span className="absolute left-3 top-2.5 text-slate-400 font-black text-sm">₹</span>
             <input
               type="number"
               value={voucherData.voucherValue}
@@ -162,30 +179,62 @@ export const VoucherForm = ({
             />
           </div>
 
-          {/* Denomination Preset Buttons & Custom Price */}
-          <div className="space-y-1 pt-1">
-            <span className="text-[11px] text-slate-500 font-semibold block">Select Denomination or Enter Custom Amount:</span>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {['1000', '2000', '5000', '10000'].map(amt => (
-                <button
-                  key={amt}
-                  type="button"
-                  onClick={() => handleChange('voucherValue', amt)}
-                  className={`text-xs px-2.5 py-1.5 rounded-lg border font-bold transition flex-1 text-center ${
-                    voucherData.voucherValue === amt
-                      ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
-                      : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  ₹{Number(amt).toLocaleString('en-IN')}
-                </button>
-              ))}
+          {/* PRINT MODE SERIES BUTTONS vs DIGITAL DENOMINATION BUTTONS */}
+          {voucherMode === 'print' ? (
+            <div className="space-y-1.5 pt-1">
+              <span className="text-[11px] text-amber-900 font-extrabold flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" /> Select Print Voucher Series (YGT-26-Series):
+              </span>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { letter: 'A', label: 'Series A', prefixStr: 'YGT-26-A-', val: '1000' },
+                  { letter: 'B', label: 'Series B', prefixStr: 'YGT-26-B-', val: '2000' },
+                  { letter: 'C', label: 'Series C', prefixStr: 'YGT-26-C-', val: '5000' },
+                ].map(series => {
+                  const isActive = prefix === series.prefixStr;
+                  return (
+                    <button
+                      key={series.letter}
+                      type="button"
+                      onClick={() => onSelectPrintSeries && onSelectPrintSeries(series.letter, series.val)}
+                      className={`p-1.5 sm:p-2 rounded-xl border text-center font-bold transition text-xs flex flex-col items-center justify-center gap-0.5 ${
+                        isActive
+                          ? 'bg-amber-500 text-slate-950 border-amber-400 shadow ring-2 ring-amber-400/50 font-black'
+                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <span className="text-[11px] sm:text-xs">{series.label}</span>
+                      <span className="text-[9px] sm:text-[10px] font-mono opacity-80">₹{Number(series.val).toLocaleString('en-IN')}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-1 pt-1">
+              <span className="text-[11px] text-slate-500 font-semibold block">Select Digital Denomination or Custom:</span>
+              <div className="grid grid-cols-4 gap-1.5">
+                {['1000', '2000', '5000', '10000'].map(amt => (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => handleChange('voucherValue', amt)}
+                    className={`text-[11px] sm:text-xs px-1.5 sm:px-2.5 py-1.5 rounded-lg border font-bold transition text-center truncate ${
+                      voucherData.voucherValue === amt
+                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm font-black'
+                        : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    ₹{Number(amt).toLocaleString('en-IN')}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* FIELD 3: DATE OF ISSUE */}
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm space-y-2">
+        <div className="bg-white p-3 sm:p-3.5 rounded-xl border border-slate-200 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5 text-amber-600" /> 3. Date of Issue
@@ -208,13 +257,13 @@ export const VoucherForm = ({
                 setValidityMonths(12, val);
               }
             }}
-            className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 font-semibold focus:outline-none focus:border-amber-500 font-mono"
+            className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-base sm:text-sm text-slate-900 font-semibold focus:outline-none focus:border-amber-500 font-mono"
             placeholder="DD/MM/YYYY"
           />
         </div>
 
         {/* FIELD 4: VALID UNTIL */}
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm space-y-2">
+        <div className="bg-white p-3 sm:p-3.5 rounded-xl border border-slate-200 shadow-sm space-y-2">
           <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-amber-600" /> 4. Valid Until
           </label>
@@ -222,54 +271,54 @@ export const VoucherForm = ({
             type="text"
             value={voucherData.validUntil}
             onChange={(e) => handleChange('validUntil', e.target.value)}
-            className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 font-semibold focus:outline-none focus:border-amber-500 font-mono"
+            className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-base sm:text-sm text-slate-900 font-semibold focus:outline-none focus:border-amber-500 font-mono"
             placeholder="DD/MM/YYYY"
           />
 
           {/* Quick Validity Duration Options */}
-          <div className="flex items-center gap-1.5 pt-1">
+          <div className="grid grid-cols-4 gap-1 pt-1">
             {[
-              { label: '3 Months', m: 3 },
-              { label: '6 Months', m: 6 },
-              { label: '1 Year', m: 12 },
-              { label: '2 Years', m: 24 }
+              { label: '+3 Mos', m: 3 },
+              { label: '+6 Mos', m: 6 },
+              { label: '+1 Yr', m: 12 },
+              { label: '+2 Yrs', m: 24 }
             ].map(item => (
               <button
                 key={item.m}
                 type="button"
                 onClick={() => setValidityMonths(item.m)}
-                className="flex-1 py-1 text-[11px] bg-slate-100 hover:bg-slate-200 border border-slate-250 rounded text-slate-700 transition font-medium"
+                className="py-1 text-[10px] sm:text-[11px] bg-slate-100 hover:bg-slate-200 border border-slate-250 rounded text-slate-700 transition font-medium text-center truncate"
               >
-                + {item.label}
+                {item.label}
               </button>
             ))}
           </div>
         </div>
 
         {/* FIELD 5: RECIPIENT NAME & CONTACT NUMBER */}
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+        <div className="bg-white p-3 sm:p-3.5 rounded-xl border border-slate-200 shadow-sm space-y-3">
           <div>
             <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5 mb-1.5">
-              <User className="w-3.5 h-3.5 text-amber-600" /> 5. Customer / Recipient Name (Optional)
+              <User className="w-3.5 h-3.5 text-amber-600" /> 5. Recipient Name (Optional)
             </label>
             <input
               type="text"
               value={voucherData.recipientName || ''}
               onChange={(e) => handleChange('recipientName', e.target.value)}
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 font-semibold focus:outline-none focus:border-amber-500"
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-base sm:text-sm text-slate-900 font-semibold focus:outline-none focus:border-amber-500"
               placeholder="e.g. Rahul Sharma"
             />
           </div>
 
           <div>
             <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5 mb-1.5">
-              <Phone className="w-3.5 h-3.5 text-amber-600" /> 6. Recipient Contact Number (Optional)
+              <Phone className="w-3.5 h-3.5 text-amber-600" /> 6. Recipient Phone (Optional)
             </label>
             <input
               type="tel"
               value={voucherData.recipientPhone || ''}
               onChange={(e) => handleChange('recipientPhone', e.target.value)}
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 font-semibold focus:outline-none focus:border-amber-500 font-mono"
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-base sm:text-sm text-slate-900 font-semibold focus:outline-none focus:border-amber-500 font-mono"
               placeholder="e.g. +91 9876543210"
             />
           </div>
@@ -279,7 +328,7 @@ export const VoucherForm = ({
         <div className="pt-2 border-t border-slate-200 space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-amber-600" /> Separate Field Position Controls
+              <SlidersHorizontal className="w-3.5 h-3.5 text-amber-600" /> Separate Field Positions
             </h4>
           </div>
 
@@ -288,7 +337,7 @@ export const VoucherForm = ({
             <button
               type="button"
               onClick={() => setActiveAdjustField('f1')}
-              className={`py-1 rounded text-center transition ${
+              className={`py-1 rounded text-center transition truncate ${
                 activeAdjustField === 'f1' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -297,40 +346,40 @@ export const VoucherForm = ({
             <button
               type="button"
               onClick={() => setActiveAdjustField('f2')}
-              className={`py-1 rounded text-center transition ${
+              className={`py-1 rounded text-center transition truncate ${
                 activeAdjustField === 'f2' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              2. Value
+              2. Val
             </button>
             <button
               type="button"
               onClick={() => setActiveAdjustField('f3')}
-              className={`py-1 rounded text-center transition ${
+              className={`py-1 rounded text-center transition truncate ${
                 activeAdjustField === 'f3' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              3. Issue
+              3. Iss
             </button>
             <button
               type="button"
               onClick={() => setActiveAdjustField('f4')}
-              className={`py-1 rounded text-center transition ${
+              className={`py-1 rounded text-center transition truncate ${
                 activeAdjustField === 'f4' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              4. Valid
+              4. Exp
             </button>
           </div>
 
           {/* ACTIVE FIELD X & Y SLIDERS */}
           <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-3">
-            <div className="text-xs font-bold text-blue-900 border-b pb-1">
+            <div className="text-xs font-bold text-blue-900 border-b pb-1 truncate">
               Adjusting: {
-                activeAdjustField === 'f1' ? 'Field 1: Voucher Serial No.' :
-                activeAdjustField === 'f2' ? 'Field 2: Voucher Value (₹)' :
-                activeAdjustField === 'f3' ? 'Field 3: Date of Issue' :
-                'Field 4: Valid Until'
+                activeAdjustField === 'f1' ? 'Serial No.' :
+                activeAdjustField === 'f2' ? 'Value (₹)' :
+                activeAdjustField === 'f3' ? 'Issue Date' :
+                'Valid Until'
               }
             </div>
 
@@ -409,7 +458,7 @@ export const VoucherForm = ({
         </button>
 
         <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
-          <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Independent Controls
+          <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Position Controls
         </span>
       </div>
 

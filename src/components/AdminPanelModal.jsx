@@ -3,16 +3,9 @@ import {
   X, 
   ShieldCheck, 
   FileSpreadsheet, 
-  CheckCircle2, 
-  Ban, 
   Search, 
   Download, 
-  Plus, 
-  Trash2, 
-  Building2, 
-  Settings2, 
-  Clock, 
-  IndianRupee 
+  Settings2
 } from 'lucide-react';
 
 export const AdminPanelModal = ({ 
@@ -23,9 +16,7 @@ export const AdminPanelModal = ({
   serialCounter, 
   setSerialCounter, 
   prefix, 
-  setPrefix,
-  voucherData,
-  setVoucherData
+  setPrefix
 }) => {
   const [activeTab, setActiveTab] = useState('register');
   const [searchTerm, setSearchTerm] = useState('');
@@ -33,7 +24,6 @@ export const AdminPanelModal = ({
 
   if (!isOpen) return null;
 
-  // Filter vouchers
   const filteredVouchers = savedVouchers.filter(v => {
     const matchesSearch = 
       v.voucherNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -45,7 +35,6 @@ export const AdminPanelModal = ({
     return matchesSearch && matchesStatus;
   });
 
-  // Mark voucher as redeemed or active or cancelled
   const updateVoucherStatus = (id, newStatus) => {
     setSavedVouchers(prev => prev.map(item => {
       if ((item.id || item.voucherNo) === id) {
@@ -59,7 +48,6 @@ export const AdminPanelModal = ({
     }));
   };
 
-  // Export full voucher register to CSV
   const handleExportCSV = () => {
     if (savedVouchers.length === 0) {
       alert('No vouchers available to export.');
@@ -89,18 +77,18 @@ export const AdminPanelModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-5xl h-[85vh] shadow-2xl flex flex-col overflow-hidden text-slate-800">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-5xl h-[90vh] sm:h-[85vh] shadow-2xl flex flex-col overflow-hidden text-slate-800">
         
         {/* HEADER */}
-        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-slate-900 text-white flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shrink-0">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold">Yogakshema Admin Management Panel</h3>
-              <p className="text-xs text-slate-300">Voucher register, sequence counter & company settings</p>
+              <h3 className="text-base sm:text-lg font-bold">Admin Management Panel</h3>
+              <p className="text-[11px] sm:text-xs text-slate-300">Voucher register & sequence settings</p>
             </div>
           </div>
           <button
@@ -112,10 +100,10 @@ export const AdminPanelModal = ({
         </div>
 
         {/* ADMIN TABS HEADER */}
-        <div className="flex border-b border-slate-200 bg-slate-100 px-6 gap-2 pt-2">
+        <div className="flex border-b border-slate-200 bg-slate-100 px-4 sm:px-6 gap-2 pt-2 overflow-x-auto">
           <button
             onClick={() => setActiveTab('register')}
-            className={`py-2.5 px-4 text-xs font-bold rounded-t-lg transition flex items-center gap-2 ${
+            className={`py-2.5 px-4 text-xs font-bold rounded-t-lg transition flex items-center gap-2 shrink-0 ${
               activeTab === 'register' 
                 ? 'bg-white text-blue-900 border-t-2 border-amber-500 shadow-sm' 
                 : 'text-slate-600 hover:text-slate-900'
@@ -126,7 +114,7 @@ export const AdminPanelModal = ({
 
           <button
             onClick={() => setActiveTab('sequence')}
-            className={`py-2.5 px-4 text-xs font-bold rounded-t-lg transition flex items-center gap-2 ${
+            className={`py-2.5 px-4 text-xs font-bold rounded-t-lg transition flex items-center gap-2 shrink-0 ${
               activeTab === 'sequence' 
                 ? 'bg-white text-blue-900 border-t-2 border-amber-500 shadow-sm' 
                 : 'text-slate-600 hover:text-slate-900'
@@ -138,10 +126,10 @@ export const AdminPanelModal = ({
 
         {/* TAB 1: VOUCHER REGISTER / LOGS */}
         {activeTab === 'register' && (
-          <div className="flex-1 p-6 flex flex-col overflow-hidden space-y-4">
+          <div className="flex-1 p-3.5 sm:p-6 flex flex-col overflow-hidden space-y-4">
             
             {/* SEARCH & FILTERS */}
-            <div className="flex items-center justify-between gap-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
               <div className="relative flex-1">
                 <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
                 <input
@@ -149,7 +137,7 @@ export const AdminPanelModal = ({
                   placeholder="Search serial number, amount or customer..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-amber-500"
+                  className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-1.5 text-base sm:text-xs text-slate-800 focus:outline-none focus:border-amber-500"
                 />
               </div>
 
@@ -157,7 +145,7 @@ export const AdminPanelModal = ({
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none"
+                  className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none flex-1 sm:flex-none"
                 >
                   <option value="all">All Statuses</option>
                   <option value="active">Active</option>
@@ -167,16 +155,16 @@ export const AdminPanelModal = ({
 
                 <button
                   onClick={handleExportCSV}
-                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 transition shadow"
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 transition shadow shrink-0"
                 >
-                  <Download className="w-3.5 h-3.5" /> Export Excel/CSV
+                  <Download className="w-3.5 h-3.5" /> <span className="hidden xs:inline">Export Excel</span>
                 </button>
               </div>
             </div>
 
             {/* TABLE */}
             <div className="flex-1 overflow-auto border border-slate-200 rounded-xl bg-white shadow-sm">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left border-collapse min-w-[600px]">
                 <thead className="bg-slate-100 text-slate-700 text-xs font-bold uppercase sticky top-0 border-b border-slate-200">
                   <tr>
                     <th className="p-3">Serial No</th>
@@ -246,8 +234,8 @@ export const AdminPanelModal = ({
 
         {/* TAB 2: SERIAL COUNTER & PREFIX CONFIG */}
         {activeTab === 'sequence' && (
-          <div className="p-6 space-y-6 max-w-xl mx-auto w-full overflow-y-auto">
-            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+          <div className="p-4 sm:p-6 space-y-6 max-w-xl mx-auto w-full overflow-y-auto">
+            <div className="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-4">
               <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide flex items-center gap-2">
                 <Settings2 className="w-4 h-4 text-amber-500" /> Serial Prefix & Auto-Counter Settings
               </h4>
@@ -260,7 +248,7 @@ export const AdminPanelModal = ({
                   type="text"
                   value={prefix}
                   onChange={(e) => setPrefix(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm text-blue-900 font-mono font-bold focus:outline-none focus:border-amber-500"
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-base sm:text-sm text-blue-900 font-mono font-bold focus:outline-none focus:border-amber-500"
                   placeholder="YTT-D-"
                 />
                 <span className="text-[11px] text-slate-500 mt-1 block">
@@ -276,12 +264,12 @@ export const AdminPanelModal = ({
                   type="number"
                   value={serialCounter}
                   onChange={(e) => setSerialCounter(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 font-mono font-bold focus:outline-none focus:border-amber-500"
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-base sm:text-sm text-slate-900 font-mono font-bold focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
-                <span className="text-xs text-slate-500">Reset to #1 (YTT-D-0001):</span>
+                <span className="text-xs text-slate-500">Reset to #1:</span>
                 <button
                   onClick={() => setSerialCounter(1)}
                   className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold rounded-lg transition"
@@ -294,13 +282,13 @@ export const AdminPanelModal = ({
         )}
 
         {/* FOOTER */}
-        <div className="px-6 py-3 bg-slate-100 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-          <span>Yogakshema Tours & Travels Pvt Ltd — Digital Management</span>
+        <div className="px-4 sm:px-6 py-3 bg-slate-100 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+          <span className="truncate">Yogakshema Tours & Travels Pvt Ltd</span>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg transition"
+            className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg transition shrink-0"
           >
-            Close Admin Panel
+            Close
           </button>
         </div>
 
