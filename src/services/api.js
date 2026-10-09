@@ -102,6 +102,21 @@ export async function checkVoucherExistsAPI(voucherNo) {
 }
 
 /**
+ * Fetch next available serial number and counter for a specific prefix from MongoDB
+ */
+export async function fetchNextSerialAPI(prefix = 'YTT-D-') {
+  try {
+    const res = await fetch(`${API_BASE}/vouchers/next-serial?prefix=${encodeURIComponent(prefix)}`);
+    if (!res.ok) throw new Error('Failed to fetch next serial');
+    return await res.json();
+  } catch (err) {
+    console.warn('API fetchNextSerial fallback:', err.message);
+    return null;
+  }
+}
+
+
+/**
  * Save single or batch vouchers to MongoDB
  */
 export async function saveVoucherAPI(voucherOrArray, checkUnique = false) {

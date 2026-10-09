@@ -29,6 +29,10 @@ export const AdminPage = ({
   setSerialCounter, 
   prefix, 
   setPrefix, 
+  seriesConfigs = [],
+  setSeriesConfigs,
+  seriesCounters = {},
+  setSeriesCounters,
   onLogout,
   storedPassword,
   setStoredPassword,
@@ -142,36 +146,103 @@ export const AdminPage = ({
   const [seqMsg, setSeqMsg] = useState(null);
   const [isUpdatingPass, setIsUpdatingPass] = useState(false);
 
+  const defaultSeriesList = [
+    { key: 'A', label: 'Series A', prefix: 'YGT-26-A-', val: '1000', counter: 1 },
+    { key: 'B', label: 'Series B', prefix: 'YGT-26-B-', val: '2000', counter: 1 },
+    { key: 'C', label: 'Series C', prefix: 'YGT-26-C-', val: '5000', counter: 1 },
+    { key: 'D', label: 'Series D', prefix: 'YGT-26-D-', val: '10000', counter: 1 },
+    { key: 'digital', label: 'Digital Series', prefix: 'YTT-D-', val: '10000', counter: 1 }
+  ];
+
+  const currentSeriesConfigs = (seriesConfigs && seriesConfigs.length > 0) ? seriesConfigs : defaultSeriesList;
+
+  const handleUpdateSeriesField = (index, field, value) => {
+    const updated = currentSeriesConfigs.map((s, i) => {
+      if (i === index) {
+        return { ...s, [field]: value };
+      }
+      return s;
+    });
+    if (setSeriesConfigs) setSeriesConfigs(updated);
+
+    if (field === 'prefix' || field === 'counter') {
+      const targetPrefix = updated[index].prefix;
+      const targetCounter = Number(updated[index].counter) || 1;
+      if (setSeriesCounters) {
+        setSeriesCounters(prev => ({ ...prev, [targetPrefix]: targetCounter }));
+      }
+    }
+  };
+
+  const handleResetSingleSeriesCounter = (index) => {
+    const updated = currentSeriesConfigs.map((s, i) => {
+      if (i === index) {
+        return { ...s, counter: 1 };
+      }
+      return s;
+    });
+    if (setSeriesConfigs) setSeriesConfigs(updated);
+    const targetPrefix = updated[index].prefix;
+    if (setSeriesCounters) {
+      setSeriesCounters(prev => ({ ...prev, [targetPrefix]: 1 }));
+    }
+  };
+
+  const handleResetAllSeriesCounters = async () => {
+    setIsResettingSeq(true);
+    setSeqMsg(null);
+    try {
+      await new Promise(r => setTimeout(r, 250));
+      const updatedConfigs = currentSeriesConfigs.map(s => ({ ...s, counter: 1 }));
+      const updatedCounters = {};
+      updatedConfigs.forEach(s => {
+        if (s.prefix) updatedCounters[s.prefix] = 1;
+      });
+      if (setSeriesConfigs) setSeriesConfigs(updatedConfigs);
+      if (setSeriesCounters) setSeriesCounters(updatedCounters);
+      if (setSerialCounter) setSerialCounter(1);
+
+      await updateConfigAPI({ 
+        seriesConfigs: updatedConfigs, 
+        seriesCounters: updatedCounters, 
+        serialCounter: 1, 
+        prefix 
+      });
+      setSeqMsg({ type: 'success', text: 'All Series Counters reset to #1 (0001) and saved to MongoDB!' });
+    } catch (err) {
+      setSeqMsg({ type: 'error', text: 'Failed to reset counters' });
+    } finally {
+      setIsResettingSeq(false);
+      setTimeout(() => setSeqMsg(null), 4000);
+    }
+  };
+
   const handleSaveSequenceConfig = async (e) => {
     if (e) e.preventDefault();
     setIsSavingSeq(true);
     setSeqMsg(null);
     try {
       await new Promise(r => setTimeout(r, 200));
-      setPrefix(prefix);
-      setSerialCounter(serialCounter);
-      await updateConfigAPI({ serialCounter, prefix });
-      setSeqMsg({ type: 'success', text: 'Serial Counter Configuration saved & synced to MongoDB database!' });
+      const configsToSave = currentSeriesConfigs;
+      const updatedCounters = { ...seriesCounters };
+      configsToSave.forEach(s => {
+        if (s && s.prefix) {
+          updatedCounters[s.prefix] = Number(s.counter) || 1;
+        }
+      });
+      if (setSeriesConfigs) setSeriesConfigs(configsToSave);
+      if (setSeriesCounters) setSeriesCounters(updatedCounters);
+      await updateConfigAPI({ 
+        seriesConfigs: configsToSave, 
+        seriesCounters: updatedCounters, 
+        prefix, 
+        serialCounter 
+      });
+      setSeqMsg({ type: 'success', text: 'All Series Configurations (Series A, B, C, D & Digital) saved & synced to MongoDB database!' });
     } catch (err) {
       setSeqMsg({ type: 'error', text: 'Failed to update configuration' });
     } finally {
       setIsSavingSeq(false);
-      setTimeout(() => setSeqMsg(null), 4000);
-    }
-  };
-
-  const handleResetCounterClick = async () => {
-    setIsResettingSeq(true);
-    setSeqMsg(null);
-    try {
-      await new Promise(r => setTimeout(r, 250));
-      setSerialCounter(1);
-      await updateConfigAPI({ serialCounter: 1, prefix });
-      setSeqMsg({ type: 'success', text: 'Counter reset to #1 (0001) and saved to MongoDB!' });
-    } catch (err) {
-      setSeqMsg({ type: 'error', text: 'Failed to reset counter' });
-    } finally {
-      setIsResettingSeq(false);
       setTimeout(() => setSeqMsg(null), 4000);
     }
   };
@@ -502,13 +573,31 @@ export const AdminPage = ({
             </div>
           )}
 
-          {/* TAB 2: SEQUENCE CONFIG */}
+          {/* TAB 2: SEQUENCE & SERIES CONFIG */}
           {activeTab === 'sequence' && (
-            <div className="p-4 sm:p-8 max-w-xl mx-auto w-full space-y-6">
-              <form onSubmit={handleSaveSequenceConfig} className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-200 space-y-5">
-                <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide flex items-center gap-2">
-                  <Settings2 className="w-4 h-4 text-amber-500" /> Serial Counter Configuration
-                </h4>
+            <div className="p-3.5 sm:p-8 max-w-5xl mx-auto w-full space-y-6">
+              
+              <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-200 space-y-6">
+                
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
+                  <div>
+                    <h4 className="text-base sm:text-lg font-extrabold text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                      <Settings2 className="w-5 h-5 text-amber-500" /> Series Counter & Voucher Configuration
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Configure separate prefixes, voucher amounts, and serial counters for Series A, B, C, D and Digital E-Vouchers stored in database.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleResetAllSeriesCounters}
+                    disabled={isResettingSeq || isSavingSeq}
+                    className="px-3.5 py-2 bg-slate-200 hover:bg-slate-300 disabled:opacity-50 text-slate-800 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 shrink-0"
+                  >
+                    {isResettingSeq ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                    Reset All Counters to 1
+                  </button>
+                </div>
 
                 {seqMsg && (
                   <div className={`p-3.5 rounded-xl text-xs font-bold border ${
@@ -521,64 +610,114 @@ export const AdminPage = ({
                   </div>
                 )}
 
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Serial Prefix
-                  </label>
-                  <input
-                    type="text"
-                    value={prefix}
-                    onChange={(e) => setPrefix(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-base sm:text-sm text-blue-900 font-mono font-bold focus:outline-none focus:border-amber-500"
-                    placeholder="YTT-D-"
-                  />
-                  <span className="text-[11px] text-slate-500 mt-1 block">
-                    Format preview: <code className="font-mono text-amber-600 font-bold">{prefix}0001</code>
-                  </span>
+                {/* SERIES CARDS GRID */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                  {currentSeriesConfigs.map((series, idx) => {
+                    const seriesPfx = series.prefix || `YGT-26-${series.key}-`;
+                    const seriesVal = series.val || series.value || '1000';
+                    const seriesCnt = series.counter || seriesCounters[seriesPfx] || 1;
+                    const previewStr = `${seriesPfx}${String(seriesCnt).padStart(4, '0')}`;
+
+                    return (
+                      <div key={series.key || idx} className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 relative">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 font-black text-xs flex items-center justify-center shadow-sm">
+                              {series.key || 'S'}
+                            </span>
+                            <div>
+                              <h5 className="text-sm font-bold text-slate-900">{series.label || `Series ${series.key}`}</h5>
+                              <span className="text-[10px] text-slate-400 font-mono">Key: {series.key}</span>
+                            </div>
+                          </div>
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-extrabold bg-amber-50 text-amber-900 border border-amber-200">
+                            Preview: {previewStr}
+                          </span>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div>
+                            <label className="text-xs font-bold text-slate-700 block mb-1">
+                              Serial Prefix
+                            </label>
+                            <input
+                              type="text"
+                              value={seriesPfx}
+                              onChange={(e) => handleUpdateSeriesField(idx, 'prefix', e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm text-blue-900 font-mono font-bold focus:outline-none focus:border-amber-500"
+                              placeholder="YGT-26-A-"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="text-xs font-bold text-slate-700 block mb-1">
+                                Default Amount (₹)
+                              </label>
+                              <div className="relative">
+                                <span className="absolute left-3 top-2 text-slate-400 font-bold text-xs">₹</span>
+                                <input
+                                  type="number"
+                                  value={seriesVal}
+                                  onChange={(e) => handleUpdateSeriesField(idx, 'val', e.target.value)}
+                                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-7 pr-3 py-2 text-sm text-slate-900 font-bold focus:outline-none focus:border-amber-500"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-slate-700 block mb-1">
+                                Next Counter #
+                              </label>
+                              <input
+                                type="number"
+                                value={seriesCnt}
+                                onChange={(e) => handleUpdateSeriesField(idx, 'counter', Math.max(1, parseInt(e.target.value, 10) || 1))}
+                                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 font-mono font-bold focus:outline-none focus:border-amber-500"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 flex justify-between items-center text-xs">
+                          <button
+                            type="button"
+                            onClick={() => handleResetSingleSeriesCounter(idx)}
+                            className="text-amber-800 hover:text-amber-900 font-bold text-[11px] underline"
+                          >
+                            Reset Counter to #1
+                          </button>
+                          <span className="text-[11px] text-slate-500 font-mono font-semibold">
+                            Format: <code className="text-amber-700 font-bold">{seriesPfx}0001</code>
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
 
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Next Counter Number
-                  </label>
-                  <input
-                    type="number"
-                    value={serialCounter}
-                    onChange={(e) => setSerialCounter(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-base sm:text-sm text-slate-900 font-mono font-bold focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-
-                <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row gap-3 justify-between items-center">
+                <div className="pt-4 border-t border-slate-200 flex justify-end">
                   <button
                     type="button"
-                    onClick={handleResetCounterClick}
-                    disabled={isResettingSeq || isSavingSeq}
-                    className="w-full sm:w-auto px-4 py-2.5 bg-slate-200 hover:bg-slate-300 disabled:opacity-50 text-slate-800 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5"
-                  >
-                    {isResettingSeq ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                    Reset Counter to 1
-                  </button>
-
-                  <button
-                    type="submit"
+                    onClick={handleSaveSequenceConfig}
                     disabled={isSavingSeq || isResettingSeq}
-                    className="w-full sm:w-auto px-6 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-2"
+                    className="w-full sm:w-auto px-8 py-3 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-extrabold text-xs rounded-xl shadow-lg transition flex items-center justify-center gap-2"
                   >
                     {isSavingSeq ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
-                        Saving Configuration...
+                        Saving All Configurations...
                       </>
                     ) : (
                       <>
                         <Save className="w-4 h-4 text-amber-400" />
-                        Save Configuration
+                        Save All Series Configurations to Database
                       </>
                     )}
                   </button>
                 </div>
-              </form>
+
+              </div>
             </div>
           )}
 

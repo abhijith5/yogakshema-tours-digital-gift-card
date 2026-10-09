@@ -19,6 +19,8 @@ export const VoucherForm = ({
   setSerialCounter, 
   prefix,
   setPrefix,
+  seriesConfigs = [],
+  onSelectSeriesConfig,
   voucherMode = 'digital',
   onSelectPrintSeries,
   onNextSerial, 
@@ -26,6 +28,14 @@ export const VoucherForm = ({
   onSaveToDatabase
 }) => {
   const [activeAdjustField, setActiveAdjustField] = useState('f1');
+
+  const printSeriesList = (seriesConfigs || []).filter(s => s.key !== 'digital' && s.prefix !== 'YTT-D-');
+  const printSeriesToRender = printSeriesList.length > 0 ? printSeriesList : [
+    { key: 'A', label: 'Series A', prefix: 'YGT-26-A-', val: '1000' },
+    { key: 'B', label: 'Series B', prefix: 'YGT-26-B-', val: '2000' },
+    { key: 'C', label: 'Series C', prefix: 'YGT-26-C-', val: '5000' },
+    { key: 'D', label: 'Series D', prefix: 'YGT-26-D-', val: '10000' }
+  ];
 
   const handleChange = (field, value) => {
     setVoucherData(prev => ({ ...prev, [field]: value }));
@@ -185,26 +195,30 @@ export const VoucherForm = ({
               <span className="text-[11px] text-amber-900 font-extrabold flex items-center gap-1">
                 <Sparkles className="w-3.5 h-3.5 text-amber-600" /> Select Print Voucher Series (YGT-26-Series):
               </span>
-              <div className="grid grid-cols-3 gap-1.5">
-                {[
-                  { letter: 'A', label: 'Series A', prefixStr: 'YGT-26-A-', val: '1000' },
-                  { letter: 'B', label: 'Series B', prefixStr: 'YGT-26-B-', val: '2000' },
-                  { letter: 'C', label: 'Series C', prefixStr: 'YGT-26-C-', val: '5000' },
-                ].map(series => {
-                  const isActive = prefix === series.prefixStr;
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                {printSeriesToRender.map(series => {
+                  const seriesPfx = series.prefix || series.prefixStr;
+                  const seriesVal = series.val || series.value;
+                  const isActive = prefix === seriesPfx;
                   return (
                     <button
-                      key={series.letter}
+                      key={series.key || series.letter || seriesPfx}
                       type="button"
-                      onClick={() => onSelectPrintSeries && onSelectPrintSeries(series.letter, series.val)}
+                      onClick={() => {
+                        if (onSelectSeriesConfig) {
+                          onSelectSeriesConfig(seriesPfx, seriesVal);
+                        } else if (onSelectPrintSeries) {
+                          onSelectPrintSeries(series.key || series.letter || 'A', seriesVal);
+                        }
+                      }}
                       className={`p-1.5 sm:p-2 rounded-xl border text-center font-bold transition text-xs flex flex-col items-center justify-center gap-0.5 ${
                         isActive
                           ? 'bg-amber-500 text-slate-950 border-amber-400 shadow ring-2 ring-amber-400/50 font-black'
                           : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                       }`}
                     >
-                      <span className="text-[11px] sm:text-xs">{series.label}</span>
-                      <span className="text-[9px] sm:text-[10px] font-mono opacity-80">₹{Number(series.val).toLocaleString('en-IN')}</span>
+                      <span className="text-[11px] sm:text-xs">{series.label || `Series ${series.key}`}</span>
+                      <span className="text-[9px] sm:text-[10px] font-mono opacity-80">₹{Number(seriesVal || 1000).toLocaleString('en-IN')}</span>
                     </button>
                   );
                 })}

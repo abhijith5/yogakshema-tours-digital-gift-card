@@ -1,0 +1,46 @@
+{
+  "appName": "Yogakshema Gift Vouchers",
+  "defaultPrefix": "YTT-D-",
+  "series": [
+    {
+      "key": "digital",
+      "label": "Digital Series",
+      "prefix": "YTT-D-",
+      "value": "10000",
+      "counter": 1,
+      "description": "Standard Digital E-Voucher Series"
+    },
+    {
+      "key": "A",
+      "label": "Series A",
+      "prefix": "YGT-26-A-",
+      "value": "1000",
+      "counter": 1,
+      "description": "Print Series A (₹1,000)"
+    },
+    {
+      "key": "B",
+      "label": "Series B",
+      "prefix": "YGT-26-B-",
+      "value": "2000",
+      "counter": 1,
+      "description": "Print Series B (₹2,000)"
+    },
+    {
+      "key": "C",
+      "label": "Series C",
+      "prefix": "YGT-26-C-",
+      "value": "5000",
+      "counter": 1,
+      "description": "Print Series C (₹5,000)"
+    },
+    {
+      "key": "D",
+      "label": "Series D",
+      "prefix": "YGT-26-D-",
+      "value": "10000",
+      "counter": 1,
+      "description": "Print Series D (₹10,000)"
+    }
+  ]
+}

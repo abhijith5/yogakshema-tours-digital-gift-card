@@ -20,6 +20,7 @@ import {
   exportBatchVouchersZIP 
 } from '../utils/voucherExporter';
 import { saveVoucherAPI } from '../services/api';
+import { getNextSerialForPrefix } from '../utils/serialUtils';
 
 export const BulkGeneratorModal = ({ 
   isOpen, 
@@ -27,10 +28,12 @@ export const BulkGeneratorModal = ({
   baseVoucherData, 
   onBulkGenerated, 
   onLoadVoucher,
-  currentCounter = 1 
+  currentCounter = 1,
+  savedVouchers = []
 }) => {
   const [prefix, setPrefix] = useState('YTT-D-');
   const [startNum, setStartNum] = useState(currentCounter);
+
   const [count, setCount] = useState(10);
   const [voucherValue, setVoucherValue] = useState(baseVoucherData.voucherValue);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -170,7 +173,12 @@ export const BulkGeneratorModal = ({
               <input
                 type="text"
                 value={prefix}
-                onChange={(e) => setPrefix(e.target.value)}
+                onChange={(e) => {
+                  const pfx = e.target.value;
+                  setPrefix(pfx);
+                  const { nextCounter } = getNextSerialForPrefix(pfx, savedVouchers, 1);
+                  setStartNum(nextCounter);
+                }}
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-base sm:text-sm text-amber-300 font-mono font-bold focus:outline-none focus:border-amber-400"
               />
             </div>
@@ -211,11 +219,12 @@ export const BulkGeneratorModal = ({
           {/* QUICK PRINT & DIGITAL SERIES SELECTION */}
           <div className="space-y-1.5 pt-1">
             <span className="text-xs font-semibold text-slate-300 block">Quick Series Presets:</span>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
               {[
                 { name: 'Series A-1000', pfx: 'YGT-26-A-', val: '1000' },
                 { name: 'Series B-2000', pfx: 'YGT-26-B-', val: '2000' },
                 { name: 'Series C-5000', pfx: 'YGT-26-C-', val: '5000' },
+                { name: 'Series D-10000', pfx: 'YGT-26-D-', val: '10000' },
                 { name: 'Digital YTT-D', pfx: 'YTT-D-', val: voucherValue || '10000' },
               ].map(item => (
                 <button
@@ -223,9 +232,11 @@ export const BulkGeneratorModal = ({
                   type="button"
                   onClick={() => {
                     setPrefix(item.pfx);
-                    setVoucherValue(item.val);
+                    if (item.val) setVoucherValue(item.val);
+                    const { nextCounter } = getNextSerialForPrefix(item.pfx, savedVouchers, 1);
+                    setStartNum(nextCounter);
                   }}
-                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 ${
+                  className={`px-2 py-1.5 rounded-lg border text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 ${
                     prefix === item.pfx
                       ? 'bg-amber-500 text-slate-950 border-amber-400 font-extrabold shadow'
                       : 'bg-slate-950 text-slate-300 border-slate-700 hover:bg-slate-800'

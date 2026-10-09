@@ -2,10 +2,20 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import fs from 'fs';
 import { Voucher } from './models/Voucher.js';
 import { Config } from './models/Config.js';
 
 dotenv.config();
+
+// Load file-based series configuration
+let fileSeriesConfig = null;
+try {
+  const configFileContent = fs.readFileSync(new URL('./config/seriesConfig.json', import.meta.url), 'utf8');
+  fileSeriesConfig = JSON.parse(configFileContent);
+} catch (err) {
+  console.warn('Warning: Could not read server/config/seriesConfig.json:', err.message);
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -53,13 +63,66 @@ app.use(express.json({ limit: '10mb' }));
 // Helper to ensure initial config document exists in MongoDB
 async function getOrCreateConfig() {
   let config = await Config.findOne({ key: 'global_config' });
+  const defaultSeriesConfigs = (fileSeriesConfig && Array.isArray(fileSeriesConfig.series))
+    ? fileSeriesConfig.series.map(s => ({
+        key: s.key,
+        label: s.label,
+        prefix: s.prefix,
+        val: String(s.value || s.val || '1000'),
+        counter: s.counter || 1
+      }))
+    : [
+        { key: 'digital', label: 'Digital Series', prefix: 'YTT-D-', val: '10000', counter: 1 },
+        { key: 'A', label: 'Series A', prefix: 'YGT-26-A-', val: '1000', counter: 1 },
+        { key: 'B', label: 'Series B', prefix: 'YGT-26-B-', val: '2000', counter: 1 },
+        { key: 'C', label: 'Series C', prefix: 'YGT-26-C-', val: '5000', counter: 1 },
+        { key: 'D', label: 'Series D', prefix: 'YGT-26-D-', val: '10000', counter: 1 }
+      ];
+
+  const defaultSeriesCounters = {};
+  defaultSeriesConfigs.forEach(s => {
+    defaultSeriesCounters[s.prefix] = s.counter || 1;
+  });
+
   if (!config) {
     config = await Config.create({
       key: 'global_config',
       serialCounter: 1,
       prefix: 'YTT-D-',
-      adminPassword: 'admin123'
+      adminPassword: 'admin123',
+      seriesConfigs: defaultSeriesConfigs,
+      seriesCounters: defaultSeriesCounters
     });
+  } else {
+    let updated = false;
+    if (!config.seriesConfigs || config.seriesConfigs.length === 0) {
+      config.seriesConfigs = defaultSeriesConfigs;
+      updated = true;
+    } else {
+      const existingKeys = new Set((config.seriesConfigs || []).map(s => s.key));
+      for (const defS of defaultSeriesConfigs) {
+        if (!existingKeys.has(defS.key)) {
+          config.seriesConfigs.push(defS);
+          updated = true;
+        }
+      }
+    }
+    if (!config.seriesCounters) {
+      config.seriesCounters = defaultSeriesCounters;
+      updated = true;
+    } else {
+      for (const s of (config.seriesConfigs || [])) {
+        if (s && s.prefix && config.seriesCounters[s.prefix] === undefined) {
+          config.seriesCounters[s.prefix] = s.counter || 1;
+          updated = true;
+        }
+      }
+    }
+    if (updated) {
+      config.markModified('seriesConfigs');
+      config.markModified('seriesCounters');
+      await config.save();
+    }
   }
   return config;
 }
@@ -97,7 +160,9 @@ app.get('/api/config', async (req, res) => {
     res.json({
       serialCounter: config.serialCounter,
       prefix: config.prefix,
-      adminPassword: config.adminPassword
+      adminPassword: config.adminPassword,
+      seriesConfigs: config.seriesConfigs || [],
+      seriesCounters: config.seriesCounters || {}
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch config', message: err.message });
@@ -107,19 +172,26 @@ app.get('/api/config', async (req, res) => {
 // 3. Update system config
 app.post('/api/config', async (req, res) => {
   try {
-    const { serialCounter, prefix, adminPassword } = req.body;
+    const { serialCounter, prefix, adminPassword, seriesConfigs, seriesCounters } = req.body;
     const config = await getOrCreateConfig();
     
     if (serialCounter !== undefined) config.serialCounter = serialCounter;
     if (prefix !== undefined) config.prefix = prefix;
     if (adminPassword !== undefined) config.adminPassword = adminPassword;
+    if (seriesConfigs !== undefined) config.seriesConfigs = seriesConfigs;
+    if (seriesCounters !== undefined) config.seriesCounters = seriesCounters;
 
+    config.markModified('seriesConfigs');
+    config.markModified('seriesCounters');
     await config.save();
+
     res.json({
       success: true,
       serialCounter: config.serialCounter,
       prefix: config.prefix,
-      adminPassword: config.adminPassword
+      adminPassword: config.adminPassword,
+      seriesConfigs: config.seriesConfigs,
+      seriesCounters: config.seriesCounters
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update config', message: err.message });
@@ -166,6 +238,65 @@ app.get('/api/vouchers/check/:voucherNo', async (req, res) => {
     res.status(500).json({ error: 'Failed to check voucher number', message: err.message });
   }
 });
+
+// 5c. Get next available serial number & counter for a specific prefix from DB
+app.get('/api/vouchers/next-serial', async (req, res) => {
+  try {
+    const requestedPrefix = (req.query.prefix || 'YTT-D-').trim();
+    const lowerPrefix = requestedPrefix.toLowerCase();
+    const config = await getOrCreateConfig();
+
+    const safeRegex = requestedPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const vouchers = await Voucher.find({
+      voucherNo: { $regex: '^' + safeRegex, $options: 'i' }
+    });
+
+    let maxNum = 0;
+    let maxPadLength = 4;
+    let foundAny = false;
+
+    for (const v of vouchers) {
+      const vNo = (v.voucherNo || '').trim();
+      if (vNo.toLowerCase().startsWith(lowerPrefix)) {
+        const suffix = vNo.substring(requestedPrefix.length);
+        const match = suffix.match(/^(\d+)/);
+        if (match) {
+          const numStr = match[1];
+          const numVal = parseInt(numStr, 10);
+          if (!isNaN(numVal) && numVal > maxNum) {
+            maxNum = numVal;
+            maxPadLength = Math.max(numStr.length, 3);
+            foundAny = true;
+          }
+        }
+      }
+    }
+
+    let nextCounter = 1;
+    if (foundAny) {
+      nextCounter = maxNum + 1;
+    } else {
+      if (lowerPrefix === (config.prefix || '').toLowerCase()) {
+        nextCounter = config.serialCounter || 1;
+      } else {
+        nextCounter = 1;
+      }
+    }
+
+    const paddedNum = String(nextCounter).padStart(maxPadLength, '0');
+    const nextVoucherNo = `${requestedPrefix}${paddedNum}`;
+
+    res.json({
+      prefix: requestedPrefix,
+      nextCounter,
+      nextVoucherNo,
+      padLength: maxPadLength
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to calculate next serial number', message: err.message });
+  }
+});
+
 
 // 6. Save or Batch Save Vouchers (Create / Upsert)
 app.post('/api/vouchers', async (req, res) => {

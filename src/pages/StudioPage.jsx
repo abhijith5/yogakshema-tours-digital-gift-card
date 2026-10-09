@@ -31,6 +31,9 @@ export const StudioPage = ({
   setSerialCounter, 
   prefix, 
   setPrefix,
+  seriesConfigs = [],
+  seriesCounters = {},
+  onSelectSeriesConfig,
   incrementToNextSerial, 
   handleResetCounter, 
   savedVouchers, 
@@ -72,21 +75,29 @@ export const StudioPage = ({
     };
   }, []);
 
-  // Print Series Selector Handler (A-1000, B-2000, C-5000 -> YGT-26-series)
-  const handleSelectPrintSeries = (seriesLetter, value) => {
-    const seriesPrefix = `YGT-26-${seriesLetter.toUpperCase()}-`;
-    if (setPrefix) setPrefix(seriesPrefix);
-    setVoucherData(prev => ({
-      ...prev,
-      voucherValue: String(value)
-    }));
+  // Print Series Selector Handler (loads series config & counter directly from DB)
+  const handleSelectPrintSeries = (seriesLetter, value, customPrefix) => {
+    const seriesPrefix = customPrefix || `YGT-26-${seriesLetter.toUpperCase()}-`;
+    if (onSelectSeriesConfig) {
+      onSelectSeriesConfig(seriesPrefix, value);
+    } else {
+      if (setPrefix) setPrefix(seriesPrefix);
+      setVoucherData(prev => ({
+        ...prev,
+        voucherValue: String(value)
+      }));
+    }
   };
 
   // Mode Change Handler (Digital vs Print)
   const handleModeChange = (mode) => {
     setVoucherMode(mode);
     if (mode === 'digital') {
-      if (setPrefix) setPrefix('YTT-D-');
+      if (onSelectSeriesConfig) {
+        onSelectSeriesConfig('YTT-D-', '10000');
+      } else if (setPrefix) {
+        setPrefix('YTT-D-');
+      }
     } else if (mode === 'print') {
       if (!prefix || !prefix.startsWith('YGT-26-')) {
         handleSelectPrintSeries('A', '1000');
@@ -304,28 +315,48 @@ export const StudioPage = ({
               </div>
 
               <div className="flex items-center gap-1.5 sm:gap-2.5 w-full sm:w-auto sm:flex-1">
-                {[
-                  { letter: 'A', name: 'Series A-1000', prefixStr: 'YGT-26-A-', value: '1000' },
-                  { letter: 'B', name: 'Series B-2000', prefixStr: 'YGT-26-B-', value: '2000' },
-                  { letter: 'C', name: 'Series C-5000', prefixStr: 'YGT-26-C-', value: '5000' },
-                ].map(s => {
-                  const isActive = prefix === s.prefixStr;
-                  return (
-                    <button
-                      key={s.letter}
-                      type="button"
-                      onClick={() => handleSelectPrintSeries(s.letter, s.value)}
-                      className={`flex-1 py-1.5 sm:py-2 px-2 sm:px-3.5 rounded-xl text-[11px] sm:text-xs font-black transition border flex flex-col sm:flex-row items-center justify-center sm:justify-between ${
-                        isActive
-                          ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md ring-2 ring-amber-400/50'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-50 hover:border-amber-300'
-                      }`}
-                    >
-                      <span>{s.name}</span>
-                      <span className="font-mono text-[10px] sm:text-[11px] opacity-90">(₹{Number(s.value).toLocaleString('en-IN')})</span>
-                    </button>
-                  );
-                })}
+                {((seriesConfigs && seriesConfigs.filter(s => s.key !== 'digital' && s.prefix !== 'YTT-D-')) || []).length > 0 
+                  ? seriesConfigs.filter(s => s.key !== 'digital' && s.prefix !== 'YTT-D-').map(s => {
+                      const isActive = prefix === s.prefix;
+                      const sVal = s.val || s.value || '1000';
+                      return (
+                        <button
+                          key={s.key || s.prefix}
+                          type="button"
+                          onClick={() => handleSelectPrintSeries(s.key || 'A', sVal, s.prefix)}
+                          className={`flex-1 py-1.5 sm:py-2 px-2 sm:px-3.5 rounded-xl text-[11px] sm:text-xs font-black transition border flex flex-col sm:flex-row items-center justify-center sm:justify-between ${
+                            isActive
+                              ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md ring-2 ring-amber-400/50'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-50 hover:border-amber-300'
+                          }`}
+                        >
+                          <span>{s.label || `Series ${s.key}`}</span>
+                          <span className="font-mono text-[10px] sm:text-[11px] opacity-90">(₹{Number(sVal).toLocaleString('en-IN')})</span>
+                        </button>
+                      );
+                    })
+                  : [
+                      { letter: 'A', name: 'Series A-1000', prefixStr: 'YGT-26-A-', value: '1000' },
+                      { letter: 'B', name: 'Series B-2000', prefixStr: 'YGT-26-B-', value: '2000' },
+                      { letter: 'C', name: 'Series C-5000', prefixStr: 'YGT-26-C-', value: '5000' },
+                    ].map(s => {
+                      const isActive = prefix === s.prefixStr;
+                      return (
+                        <button
+                          key={s.letter}
+                          type="button"
+                          onClick={() => handleSelectPrintSeries(s.letter, s.value, s.prefixStr)}
+                          className={`flex-1 py-1.5 sm:py-2 px-2 sm:px-3.5 rounded-xl text-[11px] sm:text-xs font-black transition border flex flex-col sm:flex-row items-center justify-center sm:justify-between ${
+                            isActive
+                              ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md ring-2 ring-amber-400/50'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-50 hover:border-amber-300'
+                          }`}
+                        >
+                          <span>{s.name}</span>
+                          <span className="font-mono text-[10px] sm:text-[11px] opacity-90">(₹{Number(s.value).toLocaleString('en-IN')})</span>
+                        </button>
+                      );
+                    })}
               </div>
             </div>
           )}
@@ -450,6 +481,8 @@ export const StudioPage = ({
             setSerialCounter={setSerialCounter}
             prefix={prefix}
             setPrefix={setPrefix}
+            seriesConfigs={seriesConfigs}
+            onSelectSeriesConfig={onSelectSeriesConfig}
             voucherMode={voucherMode}
             onSelectPrintSeries={handleSelectPrintSeries}
             onNextSerial={incrementToNextSerial}
@@ -468,7 +501,9 @@ export const StudioPage = ({
         onBulkGenerated={handleBulkGenerated}
         onLoadVoucher={handleLoadVoucher}
         currentCounter={serialCounter}
+        savedVouchers={savedVouchers}
       />
+
 
     </div>
   );
