@@ -12,44 +12,42 @@ const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI;
 const CLIENT_URL = process.env.CLIENT_URL;
 
-// Allowed Origins for CORS preflight
-const allowedOriginsList = [
-  'https://yyt-gift-card.netlify.app',
-  'http://localhost:5173',
-  'http://localhost:5000',
-  'http://localhost:3000'
-];
+// Universal CORS Middleware for Netlify, Render, and Localhost
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'https://yyt-gift-card.netlify.app',
+    'http://localhost:5173',
+    'http://localhost:5000',
+    'http://localhost:3000'
+  ];
 
-// Middleware
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, curl, server-to-server)
-    if (!origin) return callback(null, true);
+  if (process.env.CLIENT_URL) {
+    process.env.CLIENT_URL.split(',').forEach(u => {
+      const trimmed = u.trim();
+      if (trimmed && !allowedOrigins.includes(trimmed)) {
+        allowedOrigins.push(trimmed);
+      }
+    });
+  }
 
-    const envClientUrl = process.env.CLIENT_URL || '';
-    const configuredOrigins = envClientUrl.includes(',')
-      ? envClientUrl.split(',').map(url => url.trim())
-      : [envClientUrl.trim()];
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
 
-    if (
-      allowedOriginsList.includes(origin) ||
-      configuredOrigins.includes(origin) ||
-      origin.endsWith('.netlify.app') ||
-      origin.endsWith('.onrender.com') ||
-      origin.includes('localhost') ||
-      envClientUrl === '*' ||
-      !envClientUrl
-    ) {
-      return callback(null, true);
-    }
-    
-    // Fallback: reflect request origin to prevent preflight CORS blockage
-    return callback(null, origin);
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
-}));
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Authorization, Accept, Origin');
+
+  // Handle preflight OPTIONS request directly
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  next();
+});
 app.use(express.json({ limit: '10mb' }));
 
 // Helper to ensure initial config document exists in MongoDB
