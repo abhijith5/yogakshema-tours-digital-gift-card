@@ -94,9 +94,9 @@ export const StudioPage = ({
     setVoucherMode(mode);
     if (mode === 'digital') {
       if (onSelectSeriesConfig) {
-        onSelectSeriesConfig('YTT-D-', '10000');
+        onSelectSeriesConfig('YYT-D-', '10000');
       } else if (setPrefix) {
-        setPrefix('YTT-D-');
+        setPrefix('YYT-D-');
       }
     } else if (mode === 'print') {
       if (!prefix || !prefix.startsWith('YGT-26-')) {
@@ -315,8 +315,8 @@ export const StudioPage = ({
               </div>
 
               <div className="flex items-center gap-1.5 sm:gap-2.5 w-full sm:w-auto sm:flex-1">
-                {((seriesConfigs && seriesConfigs.filter(s => s.key !== 'digital' && s.prefix !== 'YTT-D-')) || []).length > 0 
-                  ? seriesConfigs.filter(s => s.key !== 'digital' && s.prefix !== 'YTT-D-').map(s => {
+                {((seriesConfigs && seriesConfigs.filter(s => s.key !== 'digital' && s.prefix !== 'YYT-D-' && s.prefix !== 'YTT-D-')) || []).length > 0 
+                  ? seriesConfigs.filter(s => s.key !== 'digital' && s.prefix !== 'YYT-D-' && s.prefix !== 'YTT-D-').map(s => {
                       const isActive = prefix === s.prefix;
                       const sVal = s.val || s.value || '1000';
                       return (

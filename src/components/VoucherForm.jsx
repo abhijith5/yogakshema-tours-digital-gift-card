@@ -29,7 +29,7 @@ export const VoucherForm = ({
 }) => {
   const [activeAdjustField, setActiveAdjustField] = useState('f1');
 
-  const printSeriesList = (seriesConfigs || []).filter(s => s.key !== 'digital' && s.prefix !== 'YTT-D-');
+  const printSeriesList = (seriesConfigs || []).filter(s => s.key !== 'digital' && s.prefix !== 'YYT-D-' && s.prefix !== 'YTT-D-');
   const printSeriesToRender = printSeriesList.length > 0 ? printSeriesList : [
     { key: 'A', label: 'Series A', prefix: 'YGT-26-A-', val: '1000' },
     { key: 'B', label: 'Series B', prefix: 'YGT-26-B-', val: '2000' },
@@ -158,7 +158,7 @@ export const VoucherForm = ({
             value={voucherData.voucherNo}
             onChange={(e) => handleChange('voucherNo', e.target.value)}
             className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-base text-blue-900 font-mono font-black focus:outline-none focus:border-amber-500"
-            placeholder="YTT-D-0001"
+            placeholder="YYT-D-0001"
           />
 
           <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">

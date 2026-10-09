@@ -104,7 +104,7 @@ export async function checkVoucherExistsAPI(voucherNo) {
 /**
  * Fetch next available serial number and counter for a specific prefix from MongoDB
  */
-export async function fetchNextSerialAPI(prefix = 'YTT-D-') {
+export async function fetchNextSerialAPI(prefix = 'YYT-D-') {
   try {
     const res = await fetch(`${API_BASE}/vouchers/next-serial?prefix=${encodeURIComponent(prefix)}`);
     if (!res.ok) throw new Error('Failed to fetch next serial');

@@ -59,7 +59,7 @@ function AppContent() {
   const [serialCounter, setSerialCounter] = useState(1);
 
   // Prefix format
-  const [prefix, setPrefix] = useState('YTT-D-');
+  const [prefix, setPrefix] = useState('YYT-D-');
 
   // Stored series configurations from seriesConfig.json & MongoDB Atlas
   const [seriesConfigs, setSeriesConfigs] = useState(() => getFileSeriesList());
@@ -86,24 +86,38 @@ function AppContent() {
         const config = await fetchConfigAPI();
         let loadedSeriesCounters = {};
         if (config) {
-          if (config.prefix) setPrefix(config.prefix);
           if (config.adminPassword) setStoredPassword(config.adminPassword);
           if (config.seriesConfigs && Array.isArray(config.seriesConfigs)) {
-            setSeriesConfigs(config.seriesConfigs);
+            const normalizedConfigs = config.seriesConfigs.map(s => {
+              if (s.key === 'digital' && s.prefix === 'YTT-D-') {
+                return { ...s, prefix: 'YYT-D-' };
+              }
+              return s;
+            });
+            setSeriesConfigs(normalizedConfigs);
           }
           if (config.seriesCounters && typeof config.seriesCounters === 'object') {
-            setSeriesCounters(config.seriesCounters);
-            loadedSeriesCounters = config.seriesCounters;
+            const normalizedCounters = { ...config.seriesCounters };
+            if (normalizedCounters['YTT-D-'] !== undefined && normalizedCounters['YYT-D-'] === undefined) {
+              normalizedCounters['YYT-D-'] = normalizedCounters['YTT-D-'];
+              delete normalizedCounters['YTT-D-'];
+            }
+            setSeriesCounters(normalizedCounters);
+            loadedSeriesCounters = normalizedCounters;
           }
         }
+
+        // Digital mode is default on startup -> digital prefix is ALWAYS YYT-D-
+        const digitalPrefix = 'YYT-D-';
+        setPrefix(digitalPrefix);
+
         const dbVouchers = await fetchVouchersAPI();
         if (dbVouchers && Array.isArray(dbVouchers)) {
           setSavedVouchers(dbVouchers);
-          const activePrefix = config?.prefix || prefix || 'YTT-D-';
           const { nextCounter, nextVoucherNo } = getNextSerialForPrefix(
-            activePrefix, 
+            digitalPrefix, 
             dbVouchers, 
-            loadedSeriesCounters[activePrefix] || config?.serialCounter || 1,
+            loadedSeriesCounters[digitalPrefix] || config?.serialCounter || 1,
             loadedSeriesCounters
           );
           setSerialCounter(nextCounter);
@@ -286,6 +300,36 @@ function AppContent() {
     }
   };
 
+  // Save voucher directly to database upon Add to Mobile / WhatsApp share
+  const handleSaveVoucherFromMobileModal = async (voucherToSave) => {
+    try {
+      const cleanNo = (voucherToSave.voucherNo || '').trim().toUpperCase();
+      if (!cleanNo) return { success: false };
+      
+      const newEntry = {
+        ...voucherToSave,
+        voucherNo: cleanNo,
+        id: voucherToSave.id || `voucher-${Date.now()}`,
+        status: voucherToSave.status || 'active',
+        savedAt: voucherToSave.savedAt || new Date().toLocaleDateString('en-GB')
+      };
+
+      const res = await saveVoucherAPI(newEntry);
+      const savedItem = (res && res.success && res.data) ? res.data : newEntry;
+      
+      setSavedVouchers(prev => [
+        savedItem,
+        ...prev.filter(v => (v.voucherNo || '').trim().toUpperCase() !== cleanNo)
+      ]);
+      
+      await refreshDBAndAdvanceSerial();
+      return { success: true, data: savedItem };
+    } catch (err) {
+      console.error('Failed to save voucher from mobile modal:', err);
+      return { success: false };
+    }
+  };
+
   // Add / Update Scanned Pre-printed voucher
   const handleAddScannedVoucher = async (newVoucher) => {
     const res = await saveVoucherAPI(newVoucher);
@@ -397,6 +441,7 @@ function AppContent() {
         isOpen={isMobileModalOpen}
         onClose={() => setIsMobileModalOpen(false)}
         voucherData={mobileModalVoucherData || voucherData}
+        onSaveToDatabase={handleSaveVoucherFromMobileModal}
       />
 
       {/* SAVED VOUCHERS DRAWER */}

@@ -13,12 +13,12 @@
  * @returns {{ nextCounter: number, nextVoucherNo: string, padLength: number, prefix: string }}
  */
 export function getNextSerialForPrefix(
-  prefixStr = 'YTT-D-', 
+  prefixStr = 'YYT-D-', 
   vouchersList = [], 
   fallbackCounter = 1,
   seriesCountersMap = {}
 ) {
-  const cleanPrefix = (prefixStr || 'YTT-D-').trim();
+  const cleanPrefix = (prefixStr || 'YYT-D-').trim();
   const lowerPrefix = cleanPrefix.toLowerCase();
   
   let maxNum = 0;

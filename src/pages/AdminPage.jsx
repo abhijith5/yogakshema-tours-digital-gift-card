@@ -151,7 +151,7 @@ export const AdminPage = ({
     { key: 'B', label: 'Series B', prefix: 'YGT-26-B-', val: '2000', counter: 1 },
     { key: 'C', label: 'Series C', prefix: 'YGT-26-C-', val: '5000', counter: 1 },
     { key: 'D', label: 'Series D', prefix: 'YGT-26-D-', val: '10000', counter: 1 },
-    { key: 'digital', label: 'Digital Series', prefix: 'YTT-D-', val: '10000', counter: 1 }
+    { key: 'digital', label: 'Digital Series', prefix: 'YYT-D-', val: '10000', counter: 1 }
   ];
 
   const currentSeriesConfigs = (seriesConfigs && seriesConfigs.length > 0) ? seriesConfigs : defaultSeriesList;

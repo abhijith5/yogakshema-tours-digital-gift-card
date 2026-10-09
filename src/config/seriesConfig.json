@@ -1,11 +1,11 @@
 {
   "appName": "Yogakshema Gift Vouchers",
-  "defaultPrefix": "YTT-D-",
+  "defaultPrefix": "YYT-D-",
   "series": [
     {
       "key": "digital",
       "label": "Digital Series",
-      "prefix": "YTT-D-",
+      "prefix": "YYT-D-",
       "value": "10000",
       "counter": 1,
       "description": "Standard Digital E-Voucher Series"

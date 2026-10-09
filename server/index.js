@@ -72,7 +72,7 @@ async function getOrCreateConfig() {
         counter: s.counter || 1
       }))
     : [
-        { key: 'digital', label: 'Digital Series', prefix: 'YTT-D-', val: '10000', counter: 1 },
+        { key: 'digital', label: 'Digital Series', prefix: 'YYT-D-', val: '10000', counter: 1 },
         { key: 'A', label: 'Series A', prefix: 'YGT-26-A-', val: '1000', counter: 1 },
         { key: 'B', label: 'Series B', prefix: 'YGT-26-B-', val: '2000', counter: 1 },
         { key: 'C', label: 'Series C', prefix: 'YGT-26-C-', val: '5000', counter: 1 },
@@ -88,13 +88,33 @@ async function getOrCreateConfig() {
     config = await Config.create({
       key: 'global_config',
       serialCounter: 1,
-      prefix: 'YTT-D-',
+      prefix: 'YYT-D-',
       adminPassword: 'admin123',
       seriesConfigs: defaultSeriesConfigs,
       seriesCounters: defaultSeriesCounters
     });
   } else {
     let updated = false;
+    // Normalize any legacy YTT-D- prefix in DB to YYT-D-
+    if (config.prefix === 'YTT-D-') {
+      config.prefix = 'YYT-D-';
+      updated = true;
+    }
+    if (config.seriesConfigs && Array.isArray(config.seriesConfigs)) {
+      config.seriesConfigs.forEach(s => {
+        if (s.key === 'digital' && s.prefix === 'YTT-D-') {
+          s.prefix = 'YYT-D-';
+          updated = true;
+        }
+      });
+    }
+    if (config.seriesCounters && config.seriesCounters['YTT-D-'] !== undefined) {
+      if (config.seriesCounters['YYT-D-'] === undefined) {
+        config.seriesCounters['YYT-D-'] = config.seriesCounters['YTT-D-'];
+      }
+      delete config.seriesCounters['YTT-D-'];
+      updated = true;
+    }
     if (!config.seriesConfigs || config.seriesConfigs.length === 0) {
       config.seriesConfigs = defaultSeriesConfigs;
       updated = true;
@@ -242,7 +262,7 @@ app.get('/api/vouchers/check/:voucherNo', async (req, res) => {
 // 5c. Get next available serial number & counter for a specific prefix from DB
 app.get('/api/vouchers/next-serial', async (req, res) => {
   try {
-    const requestedPrefix = (req.query.prefix || 'YTT-D-').trim();
+    const requestedPrefix = (req.query.prefix || 'YYT-D-').trim();
     const lowerPrefix = requestedPrefix.toLowerCase();
     const config = await getOrCreateConfig();
 

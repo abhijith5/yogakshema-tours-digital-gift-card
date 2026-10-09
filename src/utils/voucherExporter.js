@@ -7,7 +7,7 @@ import JSZip from 'jszip';
 export const generateVoucherCanvasDataUrl = (voucherData, scaleFactor = 3) => {
   return new Promise((resolve, reject) => {
     const {
-      voucherNo = 'YTT-D-0001',
+      voucherNo = 'YYT-D-0001',
       voucherValue = '10000',
       issueDate = '06/10/2026',
       validUntil = '05/10/2027',

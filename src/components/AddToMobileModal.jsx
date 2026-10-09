@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { generateVoucherCanvasDataUrl, exportVoucherPNG } from '../utils/voucherExporter';
 
-export const AddToMobileModal = ({ isOpen, onClose, voucherData }) => {
+export const AddToMobileModal = ({ isOpen, onClose, voucherData, onSaveToDatabase }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isSharing, setIsSharing] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -31,6 +31,21 @@ export const AddToMobileModal = ({ isOpen, onClose, voucherData }) => {
 
   if (!isOpen || !voucherData) return null;
 
+  // Save current voucher to MongoDB database before sharing
+  const ensureSavedToDatabase = async () => {
+    if (onSaveToDatabase && voucherData) {
+      try {
+        const voucherToSave = {
+          ...voucherData,
+          recipientPhone: phoneNumber || voucherData.recipientPhone || ''
+        };
+        await onSaveToDatabase(voucherToSave);
+      } catch (e) {
+        console.warn('Failed to save voucher during mobile share:', e);
+      }
+    }
+  };
+
   const formattedValue = Number(voucherData.voucherValue) 
     ? Number(voucherData.voucherValue).toLocaleString('en-IN') 
     : (voucherData.voucherValue || '10,000');
@@ -42,7 +57,7 @@ export const AddToMobileModal = ({ isOpen, onClose, voucherData }) => {
 📅 *Date of Issue:* ${voucherData.issueDate || ''}
 ⏳ *Valid Until:* ${voucherData.validUntil || ''}
 👤 *Recipient:* ${voucherData.recipientName || 'Valued Guest'}
-${voucherData.recipientPhone ? `📞 *Phone:* ${voucherData.recipientPhone}\n` : ''}----------------------------------------
+${phoneNumber || voucherData.recipientPhone ? `📞 *Phone:* ${phoneNumber || voucherData.recipientPhone}\n` : ''}----------------------------------------
 ✨ Redeemable for Tours, Travels & Holiday Packages!
 Thank you for choosing Yogakshema Tours & Travels!`;
 
@@ -70,6 +85,9 @@ Thank you for choosing Yogakshema Tours & Travels!`;
     setShareSuccessMessage('');
 
     try {
+      // Always save voucher to database when sharing to WhatsApp
+      await ensureSavedToDatabase();
+
       // 1. Render high-res PNG image
       const dataUrl = await generateVoucherCanvasDataUrl(voucherData, 3);
       const res = await fetch(dataUrl);
@@ -83,7 +101,7 @@ Thank you for choosing Yogakshema Tours & Travels!`;
           title: `Digital Gift Card - ${voucherData.voucherNo}`,
           text: formattedMessage
         });
-        setShareSuccessMessage('Voucher Image & Caption Text shared to WhatsApp!');
+        setShareSuccessMessage('Voucher Image & Caption Text shared to WhatsApp and saved to Database!');
       } else {
         // 3. Fallback for Desktop Web browsers without file share API
         // Download PNG Image
@@ -96,7 +114,7 @@ Thank you for choosing Yogakshema Tours & Travels!`;
 
         // Open WhatsApp Web/App with text prefilled
         window.open(getWhatsAppUrl(), '_blank');
-        setShareSuccessMessage('PNG Image downloaded & text caption copied to Clipboard! Opening WhatsApp...');
+        setShareSuccessMessage('Voucher saved to Database! PNG downloaded & text caption copied to Clipboard! Opening WhatsApp...');
       }
     } catch (err) {
       if (err.name !== 'AbortError') {
@@ -114,6 +132,9 @@ Thank you for choosing Yogakshema Tours & Travels!`;
     setShareSuccessMessage('');
 
     try {
+      // Save voucher to database when sharing
+      await ensureSavedToDatabase();
+
       const dataUrl = await generateVoucherCanvasDataUrl(voucherData, 2.5);
       const res = await fetch(dataUrl);
       const blob = await res.blob();
@@ -125,13 +146,13 @@ Thank you for choosing Yogakshema Tours & Travels!`;
           title: `Digital Gift Card - ${voucherData.voucherNo}`,
           text: formattedMessage
         });
-        setShareSuccessMessage('Voucher shared successfully!');
+        setShareSuccessMessage('Voucher shared successfully and saved to Database!');
       } else if (navigator.share) {
         await navigator.share({
           title: `Digital Gift Card - ${voucherData.voucherNo}`,
           text: formattedMessage
         });
-        setShareSuccessMessage('Voucher details shared successfully!');
+        setShareSuccessMessage('Voucher details shared successfully and saved to Database!');
       } else {
         await navigator.clipboard.writeText(formattedMessage);
         setCopied(true);
@@ -151,6 +172,7 @@ Thank you for choosing Yogakshema Tours & Travels!`;
   // Copy details to clipboard
   const handleCopyDetails = async () => {
     try {
+      await ensureSavedToDatabase();
       await navigator.clipboard.writeText(formattedMessage);
       setCopied(true);
       setTimeout(() => setCopied(false), 3000);
@@ -163,8 +185,9 @@ Thank you for choosing Yogakshema Tours & Travels!`;
   const handleDownloadPNG = async () => {
     setIsSharing(true);
     try {
+      await ensureSavedToDatabase();
       await exportVoucherPNG(voucherData);
-      setShareSuccessMessage('PNG saved to device gallery!');
+      setShareSuccessMessage('Voucher saved to Database and PNG saved to device gallery!');
     } catch (err) {
       console.error(err);
     } finally {
@@ -373,6 +396,7 @@ Thank you for choosing Yogakshema Tours & Travels!`;
                   href={getWhatsAppUrl()}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => ensureSavedToDatabase()}
                   className="flex-1 py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition"
                 >
                   <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
