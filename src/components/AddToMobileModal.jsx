@@ -5,7 +5,6 @@ import {
   Share2, 
   Send, 
   MessageSquare, 
-  QrCode, 
   Download, 
   Check, 
   Copy, 
@@ -13,7 +12,6 @@ import {
   Sparkles,
   Phone
 } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
 import { generateVoucherCanvasDataUrl, exportVoucherPNG } from '../utils/voucherExporter';
 
 export const AddToMobileModal = ({ isOpen, onClose, voucherData }) => {
@@ -21,7 +19,7 @@ export const AddToMobileModal = ({ isOpen, onClose, voucherData }) => {
   const [isSharing, setIsSharing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [shareSuccessMessage, setShareSuccessMessage] = useState('');
-  const [activeTab, setActiveTab] = useState('share'); // 'share' | 'whatsapp' | 'qrcode'
+  const [activeTab, setActiveTab] = useState('share'); // 'share' | 'whatsapp'
 
   useEffect(() => {
     if (voucherData && voucherData.recipientPhone) {
@@ -41,9 +39,10 @@ export const AddToMobileModal = ({ isOpen, onClose, voucherData }) => {
 ----------------------------------------
 🎟️ *Voucher No:* ${voucherData.voucherNo || ''}
 💰 *Value:* ₹${formattedValue}
-📅 *Valid Until:* ${voucherData.validUntil || ''}
+📅 *Date of Issue:* ${voucherData.issueDate || ''}
+⏳ *Valid Until:* ${voucherData.validUntil || ''}
 👤 *Recipient:* ${voucherData.recipientName || 'Valued Guest'}
-----------------------------------------
+${voucherData.recipientPhone ? `📞 *Phone:* ${voucherData.recipientPhone}\n` : ''}----------------------------------------
 ✨ Redeemable for Tours, Travels & Holiday Packages!
 Thank you for choosing Yogakshema Tours & Travels!`;
 
@@ -65,7 +64,51 @@ Thank you for choosing Yogakshema Tours & Travels!`;
     return `sms:${cleanPhone}?body=${text}`;
   };
 
-  // Web Share API handler (Native Share on Mobile devices)
+  // WhatsApp Share with BOTH PNG Voucher Image AND Text Caption
+  const handleWhatsAppShareWithImageAndText = async () => {
+    setIsSharing(true);
+    setShareSuccessMessage('');
+
+    try {
+      // 1. Render high-res PNG image
+      const dataUrl = await generateVoucherCanvasDataUrl(voucherData, 3);
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `Yogakshema_Voucher_${voucherData.voucherNo}.png`, { type: 'image/png' });
+
+      // 2. Native Mobile Web Share API with files (Android/iOS WhatsApp app integration)
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `Digital Gift Card - ${voucherData.voucherNo}`,
+          text: formattedMessage
+        });
+        setShareSuccessMessage('Voucher Image & Caption Text shared to WhatsApp!');
+      } else {
+        // 3. Fallback for Desktop Web browsers without file share API
+        // Download PNG Image
+        await exportVoucherPNG(voucherData);
+
+        // Copy formatted text caption to clipboard
+        await navigator.clipboard.writeText(formattedMessage);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 4000);
+
+        // Open WhatsApp Web/App with text prefilled
+        window.open(getWhatsAppUrl(), '_blank');
+        setShareSuccessMessage('PNG Image downloaded & text caption copied to Clipboard! Opening WhatsApp...');
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('WhatsApp share error:', err);
+        window.open(getWhatsAppUrl(), '_blank');
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  // Web Share API handler for general mobile apps
   const handleNativeShare = async () => {
     setIsSharing(true);
     setShareSuccessMessage('');
@@ -80,7 +123,7 @@ Thank you for choosing Yogakshema Tours & Travels!`;
         await navigator.share({
           files: [file],
           title: `Digital Gift Card - ${voucherData.voucherNo}`,
-          text: `Yogakshema Tours Gift Card ₹${formattedValue} (${voucherData.voucherNo})`
+          text: formattedMessage
         });
         setShareSuccessMessage('Voucher shared successfully!');
       } else if (navigator.share) {
@@ -219,7 +262,7 @@ Thank you for choosing Yogakshema Tours & Travels!`;
             </div>
           </div>
 
-          {/* TAB OPTIONS: QUICK SHARE, WHATSAPP & QR CODE */}
+          {/* TAB OPTIONS: QUICK SHARE & WHATSAPP */}
           <div className="flex bg-slate-200 p-1 rounded-2xl text-xs font-bold gap-1">
             <button
               onClick={() => setActiveTab('share')}
@@ -241,17 +284,6 @@ Thank you for choosing Yogakshema Tours & Travels!`;
               }`}
             >
               <MessageSquare className="w-3.5 h-3.5 text-emerald-600" /> WhatsApp
-            </button>
-
-            <button
-              onClick={() => setActiveTab('qrcode')}
-              className={`flex-1 py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 ${
-                activeTab === 'qrcode' 
-                  ? 'bg-white text-slate-900 shadow-sm' 
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <QrCode className="w-3.5 h-3.5 text-blue-600" /> QR Code
             </button>
           </div>
 
@@ -280,15 +312,14 @@ Thank you for choosing Yogakshema Tours & Travels!`;
 
               {/* SECONDARY ACTION GRID */}
               <div className="grid grid-cols-2 gap-2">
-                <a
-                  href={getWhatsAppUrl()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="py-3 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow flex items-center justify-center gap-1.5 transition text-center"
+                <button
+                  onClick={handleWhatsAppShareWithImageAndText}
+                  disabled={isSharing}
+                  className="py-3 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow flex items-center justify-center gap-1.5 transition text-center disabled:opacity-60"
                 >
                   <MessageSquare className="w-4 h-4 shrink-0" />
-                  <span>Send via WhatsApp</span>
-                </a>
+                  <span>WhatsApp (Image + Text)</span>
+                </button>
 
                 <a
                   href={getSMSUrl()}
@@ -318,47 +349,44 @@ Thank you for choosing Yogakshema Tours & Travels!`;
                 {formattedMessage}
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* PRIMARY WHATSAPP ACTION: SHARE IMAGE + TEXT */}
+              <button
+                onClick={handleWhatsAppShareWithImageAndText}
+                disabled={isSharing}
+                className="w-full py-3.5 px-4 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-black text-xs sm:text-sm rounded-xl shadow-lg flex items-center justify-center gap-2 transition disabled:opacity-60"
+              >
+                {isSharing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <span>Preparing Image & Caption...</span>
+                  </>
+                ) : (
+                  <>
+                    <MessageSquare className="w-4 h-4 stroke-[2.5]" />
+                    <span>Share Image + Caption to WhatsApp</span>
+                  </>
+                )}
+              </button>
+
+              <div className="flex items-center gap-2 pt-1">
                 <a
                   href={getWhatsAppUrl()}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition"
+                  className="flex-1 py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition"
                 >
-                  <MessageSquare className="w-4 h-4" />
-                  <span>Open WhatsApp & Send</span>
+                  <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Text Only Link</span>
                 </a>
 
                 <button
                   onClick={handleCopyDetails}
-                  className="py-3 px-3 bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs rounded-xl flex items-center gap-1.5 transition"
+                  className="py-2.5 px-3 bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs rounded-xl flex items-center gap-1.5 transition"
                 >
                   {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-slate-600" />}
                   <span>{copied ? 'Copied!' : 'Copy Text'}</span>
                 </button>
               </div>
-            </div>
-          )}
-
-          {/* TAB 3: SCAN QR CODE TO ADD ON PHONE */}
-          {activeTab === 'qrcode' && (
-            <div className="space-y-3 flex flex-col items-center justify-center p-3 bg-white border border-slate-200 rounded-2xl text-center animate-fadeIn">
-              <p className="text-xs font-bold text-slate-700 max-w-xs">
-                Scan this QR code with your mobile camera to view voucher details or send via phone:
-              </p>
-
-              <div className="p-4 bg-white rounded-2xl border-2 border-amber-400 shadow-md inline-block">
-                <QRCodeSVG
-                  value={getWhatsAppUrl()}
-                  size={180}
-                  level="H"
-                  includeMargin={true}
-                />
-              </div>
-
-              <span className="text-[11px] font-mono text-slate-500 bg-slate-100 px-3 py-1 rounded-full font-bold">
-                {voucherData.voucherNo} • ₹{formattedValue}
-              </span>
             </div>
           )}
 
