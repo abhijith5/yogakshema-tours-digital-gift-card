@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ShieldCheck, 
   FileSpreadsheet, 
@@ -16,10 +16,11 @@ import {
   Tag,
   Loader2,
   Save,
-  Smartphone
+  Smartphone,
+  RefreshCw
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { updateVoucherStatusAPI, updateConfigAPI } from '../services/api';
+import { updateVoucherStatusAPI, updateConfigAPI, fetchVouchersAPI } from '../services/api';
 
 export const AdminPage = ({ 
   savedVouchers, 
@@ -38,7 +39,27 @@ export const AdminPage = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sourceFilter, setSourceFilter] = useState('all');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const navigate = useNavigate();
+
+  // Auto-sync latest vouchers from MongoDB Atlas database on page load
+  const refreshVouchersFromDB = async () => {
+    setIsRefreshing(true);
+    try {
+      const dbVouchers = await fetchVouchersAPI();
+      if (dbVouchers && Array.isArray(dbVouchers)) {
+        setSavedVouchers(dbVouchers);
+      }
+    } catch (err) {
+      console.error('Failed to sync vouchers from MongoDB:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshVouchersFromDB();
+  }, []);
 
   // Change password form state
   const [currentPass, setCurrentPass] = useState('');
@@ -356,6 +377,16 @@ export const AdminPage = ({
                   </select>
 
                   <button
+                    onClick={refreshVouchersFromDB}
+                    disabled={isRefreshing}
+                    className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl flex items-center justify-center gap-1.5 transition shadow shrink-0 disabled:opacity-50"
+                    title="Refresh and sync latest data from MongoDB Database"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    <span>{isRefreshing ? 'Syncing...' : 'Refresh DB'}</span>
+                  </button>
+
+                  <button
                     onClick={handleExportCSV}
                     className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition shadow shrink-0"
                   >
@@ -383,7 +414,15 @@ export const AdminPage = ({
                     {filteredVouchers.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="text-center py-12 text-slate-400 font-medium">
-                          No vouchers recorded in register yet.
+                          <p className="text-sm font-bold text-slate-700">No vouchers recorded in register yet.</p>
+                          <p className="text-xs text-slate-500 mt-1">Create or save vouchers in Designer Studio to populate the admin panel register.</p>
+                          <button
+                            onClick={refreshVouchersFromDB}
+                            className="mt-3 px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-lg shadow inline-flex items-center gap-1.5 transition"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            <span>Reload Database Records</span>
+                          </button>
                         </td>
                       </tr>
                     ) : (

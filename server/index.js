@@ -12,10 +12,43 @@ const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI;
 const CLIENT_URL = process.env.CLIENT_URL;
 
+// Allowed Origins for CORS preflight
+const allowedOriginsList = [
+  'https://yyt-gift-card.netlify.app',
+  'http://localhost:5173',
+  'http://localhost:5000',
+  'http://localhost:3000'
+];
+
 // Middleware
 app.use(cors({
-  origin: CLIENT_URL ? (CLIENT_URL.includes(',') ? CLIENT_URL.split(',').map(url => url.trim()) : CLIENT_URL) : '*',
-  credentials: true
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, server-to-server)
+    if (!origin) return callback(null, true);
+
+    const envClientUrl = process.env.CLIENT_URL || '';
+    const configuredOrigins = envClientUrl.includes(',')
+      ? envClientUrl.split(',').map(url => url.trim())
+      : [envClientUrl.trim()];
+
+    if (
+      allowedOriginsList.includes(origin) ||
+      configuredOrigins.includes(origin) ||
+      origin.endsWith('.netlify.app') ||
+      origin.endsWith('.onrender.com') ||
+      origin.includes('localhost') ||
+      envClientUrl === '*' ||
+      !envClientUrl
+    ) {
+      return callback(null, true);
+    }
+    
+    // Fallback: reflect request origin to prevent preflight CORS blockage
+    return callback(null, origin);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
 app.use(express.json({ limit: '10mb' }));
 
