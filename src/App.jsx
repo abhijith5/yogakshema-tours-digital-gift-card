@@ -6,6 +6,7 @@ import { StudioPage } from './pages/StudioPage';
 import { AdminPage } from './pages/AdminPage';
 import { ScanAndAddVoucherModal } from './components/ScanAndAddVoucherModal';
 import { SavedVouchersDrawer } from './components/SavedVouchersDrawer';
+import { AddToMobileModal } from './components/AddToMobileModal';
 import { exportVoucherPNG, exportVoucherPDF } from './utils/voucherExporter';
 import confetti from 'canvas-confetti';
 import { 
@@ -27,13 +28,13 @@ function AppContent() {
   });
 
   // Stored password state
-  const [storedPassword, setStoredPassword] = useState(() => {
-    return localStorage.getItem('ytt_admin_password') || 'admin123';
-  });
+  const [storedPassword, setStoredPassword] = useState('admin123');
 
   // Modal & Drawer states
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
+  const [mobileModalVoucherData, setMobileModalVoucherData] = useState(null);
 
   // Saved vouchers library (stored directly in MongoDB Database)
   const [savedVouchers, setSavedVouchers] = useState([]);
@@ -53,19 +54,10 @@ function AppContent() {
   };
 
   // Serial counter state
-  const [serialCounter, setSerialCounter] = useState(() => {
-    try {
-      const stored = localStorage.getItem('ytt_serial_counter');
-      return stored ? parseInt(stored, 10) : 1;
-    } catch (e) {
-      return 1;
-    }
-  });
+  const [serialCounter, setSerialCounter] = useState(1);
 
   // Prefix format
-  const [prefix, setPrefix] = useState(() => {
-    return localStorage.getItem('ytt_serial_prefix') || 'YTT-D-';
-  });
+  const [prefix, setPrefix] = useState('YTT-D-');
 
   // Initial Sync from MongoDB Atlas
   useEffect(() => {
@@ -89,17 +81,14 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('ytt_serial_prefix', prefix);
     updateConfigAPI({ prefix });
   }, [prefix]);
 
   useEffect(() => {
-    localStorage.setItem('ytt_serial_counter', serialCounter.toString());
     updateConfigAPI({ serialCounter });
   }, [serialCounter]);
 
   useEffect(() => {
-    localStorage.setItem('ytt_admin_password', storedPassword);
     updateConfigAPI({ adminPassword: storedPassword });
   }, [storedPassword]);
 
@@ -213,7 +202,6 @@ function AppContent() {
   // Global Download PNG handler
   const handleDownloadPNG = async () => {
     try {
-      await exportVoucherPNG(voucherData);
       const cleanNo = (voucherData.voucherNo || '').trim().toUpperCase();
       const newEntry = {
         ...voucherData,
@@ -228,6 +216,8 @@ function AppContent() {
         savedItem,
         ...prev.filter(v => (v.voucherNo || '').trim().toUpperCase() !== cleanNo)
       ]);
+
+      await exportVoucherPNG(voucherData);
       incrementToNextSerial();
       confetti({ particleCount: 100, spread: 80, origin: { y: 0.7 } });
     } catch (e) {
@@ -238,7 +228,6 @@ function AppContent() {
   // Global Download PDF handler
   const handleDownloadPDF = async () => {
     try {
-      await exportVoucherPDF(voucherData);
       const cleanNo = (voucherData.voucherNo || '').trim().toUpperCase();
       const newEntry = {
         ...voucherData,
@@ -253,6 +242,8 @@ function AppContent() {
         savedItem,
         ...prev.filter(v => (v.voucherNo || '').trim().toUpperCase() !== cleanNo)
       ]);
+
+      await exportVoucherPDF(voucherData);
       incrementToNextSerial();
       confetti({ particleCount: 70, spread: 60, origin: { y: 0.7 } });
     } catch (e) {
@@ -264,6 +255,12 @@ function AppContent() {
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
     sessionStorage.setItem('ytt_app_auth', 'true');
+  };
+
+  // Open Mobile Share / Add to Mobile modal
+  const handleOpenMobileModal = (targetVoucher = null) => {
+    setMobileModalVoucherData(targetVoucher || voucherData);
+    setIsMobileModalOpen(true);
   };
 
   // Logout handler
@@ -283,6 +280,7 @@ function AppContent() {
           onLogout={handleLogout}
           onOpenScanModal={() => setIsScanModalOpen(true)}
           onOpenLibrary={() => setIsDrawerOpen(true)}
+          onOpenMobileModal={() => handleOpenMobileModal(voucherData)}
           savedCount={savedVouchers.length}
           onDownloadPNG={handleDownloadPNG}
           onDownloadPDF={handleDownloadPDF}
@@ -299,6 +297,13 @@ function AppContent() {
         onAddVoucher={handleAddScannedVoucher}
       />
 
+      {/* ADD TO MOBILE PHONE MODAL */}
+      <AddToMobileModal
+        isOpen={isMobileModalOpen}
+        onClose={() => setIsMobileModalOpen(false)}
+        voucherData={mobileModalVoucherData || voucherData}
+      />
+
       {/* SAVED VOUCHERS DRAWER */}
       <SavedVouchersDrawer
         isOpen={isDrawerOpen}
@@ -311,6 +316,7 @@ function AppContent() {
         }}
         onDeleteVoucher={handleDeleteVoucher}
         onClearAll={handleClearAllVouchers}
+        onOpenMobileModal={handleOpenMobileModal}
       />
 
       {/* ROUTE DEFINITIONS */}
@@ -350,6 +356,7 @@ function AppContent() {
                 setSavedVouchers={setSavedVouchers}
                 onSaveToDatabase={handleSaveCurrentVoucherToDatabase}
                 onOpenScanModal={() => setIsScanModalOpen(true)}
+                onOpenMobileModal={handleOpenMobileModal}
               />
             )
           } 
@@ -373,6 +380,7 @@ function AppContent() {
                 storedPassword={storedPassword}
                 setStoredPassword={setStoredPassword}
                 onOpenScanModal={() => setIsScanModalOpen(true)}
+                onOpenMobileModal={handleOpenMobileModal}
               />
             )
           } 

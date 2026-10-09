@@ -73,6 +73,7 @@ export const BulkGeneratorModal = ({
   const handleDownloadSinglePNG = async (item, index) => {
     setActiveItemAction(`png-${index}`);
     try {
+      await saveVoucherAPI(item);
       await exportVoucherPNG(item);
     } catch (e) {
       console.error(e);
@@ -84,6 +85,7 @@ export const BulkGeneratorModal = ({
   const handleDownloadSinglePDF = async (item, index) => {
     setActiveItemAction(`pdf-${index}`);
     try {
+      await saveVoucherAPI(item);
       await exportVoucherPDF(item);
     } catch (e) {
       console.error(e);

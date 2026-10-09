@@ -36,7 +36,8 @@ export const StudioPage = ({
   savedVouchers, 
   setSavedVouchers,
   onSaveToDatabase,
-  onOpenScanModal
+  onOpenScanModal,
+  onOpenMobileModal
 }) => {
   const [voucherMode, setVoucherMode] = useState('digital');
   const [zoomScale, setZoomScale] = useState(0.95);
@@ -51,9 +52,9 @@ export const StudioPage = ({
   // Auto-fit zoom level for mobile screens
   const updateAutoZoom = () => {
     if (canvasContainerRef.current) {
-      const containerWidth = canvasContainerRef.current.clientWidth - 32;
+      const containerWidth = canvasContainerRef.current.clientWidth - 24;
       if (containerWidth > 0 && containerWidth < 1050) {
-        const fitScale = Math.min(0.95, Math.max(0.28, containerWidth / 1050));
+        const fitScale = Math.min(0.95, Math.max(0.20, containerWidth / 1050));
         setZoomScale(Number(fitScale.toFixed(2)));
       } else if (containerWidth >= 1050) {
         setZoomScale(0.95);
@@ -63,8 +64,12 @@ export const StudioPage = ({
 
   useEffect(() => {
     updateAutoZoom();
+    const timer = setTimeout(updateAutoZoom, 100);
     window.addEventListener('resize', updateAutoZoom);
-    return () => window.removeEventListener('resize', updateAutoZoom);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', updateAutoZoom);
+    };
   }, []);
 
   // Print Series Selector Handler (A-1000, B-2000, C-5000 -> YGT-26-series)
@@ -99,11 +104,10 @@ export const StudioPage = ({
   const handleDownloadPNG = async () => {
     setIsExporting(true);
     const currentNo = voucherData.voucherNo;
-    setLoadingText(`Generating High-Resolution PNG Image for ${currentNo}...`);
+    setLoadingText(`Generating High-Resolution PNG Image & Saving ${currentNo} to Database...`);
 
     try {
       await new Promise(r => setTimeout(r, 200));
-      await exportVoucherPNG(voucherData);
 
       const newEntry = {
         ...voucherData,
@@ -118,6 +122,8 @@ export const StudioPage = ({
         savedItem,
         ...prev.filter(v => (v.voucherNo || '').trim().toUpperCase() !== (savedItem.voucherNo || '').trim().toUpperCase())
       ]);
+
+      await exportVoucherPNG(voucherData);
 
       const nextNo = incrementToNextSerial();
 
@@ -136,11 +142,10 @@ export const StudioPage = ({
   const handleDownloadPDF = async () => {
     setIsExporting(true);
     const currentNo = voucherData.voucherNo;
-    setLoadingText(`Preparing Landscape PDF Document for ${currentNo}...`);
+    setLoadingText(`Preparing Landscape PDF & Saving ${currentNo} to Database...`);
 
     try {
       await new Promise(r => setTimeout(r, 200));
-      await exportVoucherPDF(voucherData);
 
       const newEntry = {
         ...voucherData,
@@ -155,6 +160,8 @@ export const StudioPage = ({
         savedItem,
         ...prev.filter(v => (v.voucherNo || '').trim().toUpperCase() !== (savedItem.voucherNo || '').trim().toUpperCase())
       ]);
+
+      await exportVoucherPDF(voucherData);
 
       const nextNo = incrementToNextSerial();
 
@@ -324,16 +331,26 @@ export const StudioPage = ({
           )}
 
           {/* GENERATED VOUCHER CARD CANVAS */}
-          <div className="flex-1 flex items-center justify-center w-full min-h-[320px] sm:min-h-[440px] overflow-auto py-2">
+          <div className="flex-1 flex items-center justify-center w-full min-h-[240px] sm:min-h-[440px] overflow-x-auto py-2">
             <div 
               style={{ 
-                transform: `scale(${zoomScale})`, 
-                transformOrigin: 'top center',
-                transition: 'transform 0.15s ease-out'
+                width: `${1050 * zoomScale}px`,
+                height: `${680 * zoomScale}px`,
               }}
-              className="shadow-2xl rounded-lg border border-slate-200 shrink-0"
+              className="relative shrink-0 flex items-center justify-center shadow-2xl rounded-lg border border-slate-200 overflow-hidden"
             >
-              <VoucherCard ref={voucherRef} voucherData={voucherData} />
+              <div 
+                style={{ 
+                  width: '1050px',
+                  height: '680px',
+                  transform: `scale(${zoomScale})`, 
+                  transformOrigin: 'top left',
+                  transition: 'transform 0.15s ease-out'
+                }}
+                className="absolute top-0 left-0"
+              >
+                <VoucherCard ref={voucherRef} voucherData={voucherData} />
+              </div>
             </div>
           </div>
 
@@ -369,6 +386,18 @@ export const StudioPage = ({
                 >
                   <Save className="w-4 h-4 text-amber-400" />
                   <span className="hidden xs:inline">Save DB</span>
+                </button>
+              )}
+
+              {onOpenMobileModal && (
+                <button
+                  onClick={() => onOpenMobileModal(voucherData)}
+                  disabled={isExporting}
+                  className="flex-1 sm:flex-none px-3.5 sm:px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition disabled:opacity-50"
+                  title="Add or share voucher directly to mobile phone"
+                >
+                  <Smartphone className="w-4 h-4 text-slate-950 stroke-[2.5]" />
+                  <span>Add to Mobile</span>
                 </button>
               )}
 

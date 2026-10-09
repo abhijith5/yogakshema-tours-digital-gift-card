@@ -8,11 +8,12 @@ import {
   BookmarkCheck,
   Save,
   Menu,
-  X
+  X,
+  Smartphone
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-export const Navbar = ({ onLogout, onOpenScanModal, onOpenLibrary, onSaveToLibrary, savedCount = 0 }) => {
+export const Navbar = ({ onLogout, onOpenScanModal, onOpenLibrary, onSaveToLibrary, onOpenMobileModal, savedCount = 0 }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const isAdminPath = location.pathname === '/admin';
@@ -71,6 +72,16 @@ export const Navbar = ({ onLogout, onOpenScanModal, onOpenLibrary, onSaveToLibra
 
         {/* RIGHT ACTIONS FOR DESKTOP & TABLET */}
         <div className="hidden lg:flex items-center gap-2.5">
+          {onOpenMobileModal && (
+            <button
+              onClick={onOpenMobileModal}
+              className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 transition"
+              title="Add or share voucher directly to mobile phone via WhatsApp or Web Share"
+            >
+              <Smartphone className="w-4 h-4 stroke-[2.2]" /> Add to Mobile
+            </button>
+          )}
+
           {onSaveToLibrary && (
             <button
               onClick={onSaveToLibrary}
@@ -99,10 +110,10 @@ export const Navbar = ({ onLogout, onOpenScanModal, onOpenLibrary, onSaveToLibra
           {onOpenScanModal && (
             <button
               onClick={onOpenScanModal}
-              className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition"
+              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl border border-slate-250 flex items-center gap-1.5 transition"
               title="Scan or enter pre-printed gift card serial numbers"
             >
-              <QrCode className="w-4 h-4" /> Scan Printed Card
+              <QrCode className="w-4 h-4 text-amber-600" /> Scan Printed Card
             </button>
           )}
 
@@ -117,6 +128,16 @@ export const Navbar = ({ onLogout, onOpenScanModal, onOpenLibrary, onSaveToLibra
 
         {/* MOBILE / SMALL SCREEN ICON BUTTONS & HAMBURGER */}
         <div className="flex lg:hidden items-center gap-1.5">
+          {onOpenMobileModal && (
+            <button
+              onClick={onOpenMobileModal}
+              className="p-2 bg-amber-500 text-slate-950 rounded-lg font-bold shadow-sm flex items-center gap-1"
+              title="Add to Mobile Phone"
+            >
+              <Smartphone className="w-4 h-4 stroke-[2.2]" />
+            </button>
+          )}
+
           {onOpenLibrary && (
             <button
               onClick={onOpenLibrary}
@@ -133,10 +154,10 @@ export const Navbar = ({ onLogout, onOpenScanModal, onOpenLibrary, onSaveToLibra
           {onOpenScanModal && (
             <button
               onClick={onOpenScanModal}
-              className="p-2 bg-amber-500 text-slate-950 rounded-lg font-bold shadow-sm"
+              className="p-2 bg-slate-100 text-slate-800 rounded-lg border border-slate-250 font-bold"
               title="Scan Printed Card"
             >
-              <QrCode className="w-4 h-4" />
+              <QrCode className="w-4 h-4 text-amber-600" />
             </button>
           )}
 
@@ -168,6 +189,18 @@ export const Navbar = ({ onLogout, onOpenScanModal, onOpenLibrary, onSaveToLibra
             >
               <LayoutDashboard className="w-4 h-4 text-amber-600" /> Designer Studio Canvas
             </button>
+
+            {onOpenMobileModal && (
+              <button
+                onClick={() => {
+                  onOpenMobileModal();
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full p-2.5 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 text-xs font-black rounded-xl flex items-center gap-2 shadow-sm"
+              >
+                <Smartphone className="w-4 h-4 stroke-[2.2]" /> Add / Share Voucher to Mobile
+              </button>
+            )}
 
             <button
               onClick={() => {

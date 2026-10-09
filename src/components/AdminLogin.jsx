@@ -1,21 +1,28 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Lock, User, Key, ArrowRight, AlertCircle, Sparkles } from 'lucide-react';
+import { ShieldCheck, Lock, User, Key, ArrowRight, AlertCircle, Sparkles, Loader2 } from 'lucide-react';
 
 export const AdminLogin = ({ onLoginSuccess, storedPassword }) => {
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = (e) => {
     e.preventDefault();
-    const validPassword = storedPassword || 'admin123';
+    if (isLoading) return;
+    setIsLoading(true);
+    setError('');
 
-    if (username.trim() === 'admin' && password === validPassword) {
-      setError('');
-      onLoginSuccess();
-    } else {
-      setError('Invalid username or password. Default is admin / admin123');
-    }
+    setTimeout(() => {
+      const validPassword = storedPassword || 'admin123';
+
+      if (username.trim() === 'admin' && password === validPassword) {
+        onLoginSuccess();
+      } else {
+        setError('Invalid username or password. Default is admin / admin123');
+      }
+      setIsLoading(false);
+    }, 300);
   };
 
   return (
@@ -76,10 +83,20 @@ export const AdminLogin = ({ onLoginSuccess, storedPassword }) => {
 
           <button
             type="submit"
-            className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-xl shadow-lg flex items-center justify-center gap-2 transition"
+            disabled={isLoading}
+            className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:from-amber-400/70 disabled:to-amber-500/70 disabled:cursor-not-allowed text-slate-950 font-black rounded-xl shadow-lg flex items-center justify-center gap-2 transition"
           >
-            <span>Log In to Admin Panel</span>
-            <ArrowRight className="w-4 h-4" />
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Signing In...</span>
+              </>
+            ) : (
+              <>
+                <span>Sign In</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
           </button>
 
           <div className="pt-3 border-t border-slate-100 text-center">

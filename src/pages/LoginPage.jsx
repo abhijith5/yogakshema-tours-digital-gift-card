@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Compass, Lock, User, Key, ArrowRight, AlertCircle } from 'lucide-react';
+import { Compass, Lock, User, Key, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { verifyAdminPasswordAPI } from '../services/api';
 
@@ -7,19 +7,29 @@ export const LoginPage = ({ onLoginSuccess, storedPassword }) => {
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const validPassword = storedPassword || 'admin123';
-    const apiResult = await verifyAdminPasswordAPI(password);
+    if (isLoading) return;
+    setIsLoading(true);
+    setError('');
 
-    if (username.trim() === 'admin' && (password === validPassword || apiResult === true)) {
-      setError('');
-      onLoginSuccess();
-      navigate('/');
-    } else {
-      setError('Invalid credentials. Default: admin / admin123');
+    try {
+      const validPassword = storedPassword || 'admin123';
+      const apiResult = await verifyAdminPasswordAPI(password);
+
+      if (username.trim() === 'admin' && (password === validPassword || apiResult === true)) {
+        onLoginSuccess();
+        navigate('/');
+      } else {
+        setError('Invalid credentials. Default: admin / admin123');
+      }
+    } catch (err) {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -82,10 +92,20 @@ export const LoginPage = ({ onLoginSuccess, storedPassword }) => {
 
           <button
             type="submit"
-            className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-xl shadow-lg flex items-center justify-center gap-2 transition"
+            disabled={isLoading}
+            className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:from-amber-400/70 disabled:to-amber-500/70 disabled:cursor-not-allowed text-slate-950 font-black rounded-xl shadow-lg flex items-center justify-center gap-2 transition"
           >
-            <span>Sign In to Application</span>
-            <ArrowRight className="w-4 h-4" />
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Signing In...</span>
+              </>
+            ) : (
+              <>
+                <span>Sign In to Application</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
           </button>
 
           <div className="pt-3 border-t border-slate-100 text-center">

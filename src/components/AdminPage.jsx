@@ -116,7 +116,6 @@ export const AdminPage = ({
     }
 
     setStoredPassword(newPass);
-    localStorage.setItem('ytt_admin_password', newPass);
     setPassMsg('Password updated successfully!');
     setCurrentPass('');
     setNewPass('');

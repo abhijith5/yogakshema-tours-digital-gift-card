@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Search, Trash2, ExternalLink, Calendar, FileText, BookmarkCheck, Save, CheckCircle2 } from 'lucide-react';
+import { X, Search, Trash2, ExternalLink, Calendar, FileText, BookmarkCheck, Save, CheckCircle2, Smartphone } from 'lucide-react';
 
 export const SavedVouchersDrawer = ({ 
   isOpen, 
@@ -9,7 +9,8 @@ export const SavedVouchersDrawer = ({
   onSaveCurrentVoucher,
   onLoadVoucher, 
   onDeleteVoucher, 
-  onClearAll 
+  onClearAll,
+  onOpenMobileModal
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -142,6 +143,19 @@ export const SavedVouchersDrawer = ({
                       <Save className="w-3.5 h-3.5" />
                       <span>{isSavedInDB ? 'Saved' : 'Save'}</span>
                     </button>
+
+                    {onOpenMobileModal && (
+                      <button
+                        onClick={() => {
+                          onOpenMobileModal(item);
+                          onClose();
+                        }}
+                        className="p-1.5 bg-amber-50 text-amber-900 hover:bg-amber-100 rounded-lg transition border border-amber-300"
+                        title="Add / Share to Mobile Phone via WhatsApp or Web Share"
+                      >
+                        <Smartphone className="w-4 h-4 text-amber-600" />
+                      </button>
+                    )}
 
                     <button
                       onClick={() => {

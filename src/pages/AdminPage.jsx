@@ -15,7 +15,8 @@ import {
   QrCode,
   Tag,
   Loader2,
-  Save
+  Save,
+  Smartphone
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { updateVoucherStatusAPI, updateConfigAPI } from '../services/api';
@@ -30,7 +31,8 @@ export const AdminPage = ({
   onLogout,
   storedPassword,
   setStoredPassword,
-  onOpenScanModal
+  onOpenScanModal,
+  onOpenMobileModal
 }) => {
   const [activeTab, setActiveTab] = useState('register');
   const [searchTerm, setSearchTerm] = useState('');
@@ -175,7 +177,6 @@ export const AdminPage = ({
     try {
       await new Promise(r => setTimeout(r, 300));
       setStoredPassword(newPass);
-      localStorage.setItem('ytt_admin_password', newPass);
       await updateConfigAPI({ adminPassword: newPass });
       setPassMsg({ type: 'success', text: 'Admin password updated & synced to MongoDB database!' });
       setCurrentPass('');
@@ -425,6 +426,16 @@ export const AdminPage = ({
                           </td>
                           <td className="p-3 sm:p-3.5 text-slate-500">{v.redeemedAt || '-'}</td>
                           <td className="p-3 sm:p-3.5 text-right space-x-1">
+                            {onOpenMobileModal && (
+                              <button
+                                onClick={() => onOpenMobileModal(v)}
+                                className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-[11px] rounded-lg border border-amber-300 transition inline-flex items-center gap-1"
+                                title="Add / Share to Mobile Phone via WhatsApp or Web Share"
+                              >
+                                <Smartphone className="w-3.5 h-3.5 text-amber-600" />
+                                <span>Mobile</span>
+                              </button>
+                            )}
                             {v.status !== 'redeemed' && (
                               <button
                                 onClick={() => updateVoucherStatus(v.id || v.voucherNo, 'redeemed')}
