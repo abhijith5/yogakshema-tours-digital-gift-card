@@ -39,7 +39,8 @@ export const AddToMobileModal = ({ isOpen, onClose, voucherData, onSaveToDatabas
           ...voucherData,
           recipientPhone: phoneNumber || voucherData.recipientPhone || ''
         };
-        await onSaveToDatabase(voucherToSave);
+        const result = await onSaveToDatabase(voucherToSave);
+        return result;
       } catch (e) {
         console.warn('Failed to save voucher during mobile share:', e);
       }
@@ -85,42 +86,73 @@ Thank you for choosing Yogakshema Tours & Travels!`;
     setShareSuccessMessage('');
 
     try {
-      // Always save voucher to database when sharing to WhatsApp
+      // 1. ALWAYS save voucher to MongoDB database first
       await ensureSavedToDatabase();
 
-      // 1. Render high-res PNG image
+      // 2. Render high-res PNG image
       const dataUrl = await generateVoucherCanvasDataUrl(voucherData, 3);
       const res = await fetch(dataUrl);
       const blob = await res.blob();
       const file = new File([blob], `Yogakshema_Voucher_${voucherData.voucherNo}.png`, { type: 'image/png' });
 
-      // 2. Native Mobile Web Share API with files (Android/iOS WhatsApp app integration)
+      // 3. Native Mobile Web Share API with files (Android/iOS WhatsApp app integration)
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
           title: `Digital Gift Card - ${voucherData.voucherNo}`,
           text: formattedMessage
         });
-        setShareSuccessMessage('Voucher Image & Caption Text shared to WhatsApp and saved to Database!');
+        setShareSuccessMessage('✅ Voucher stored in Database & shared to WhatsApp!');
       } else {
-        // 3. Fallback for Desktop Web browsers without file share API
-        // Download PNG Image
+        // Fallback for Desktop Web browsers without file share API
         await exportVoucherPNG(voucherData);
-
-        // Copy formatted text caption to clipboard
         await navigator.clipboard.writeText(formattedMessage);
         setCopied(true);
         setTimeout(() => setCopied(false), 4000);
 
-        // Open WhatsApp Web/App with text prefilled
         window.open(getWhatsAppUrl(), '_blank');
-        setShareSuccessMessage('Voucher saved to Database! PNG downloaded & text caption copied to Clipboard! Opening WhatsApp...');
+        setShareSuccessMessage('✅ Voucher saved to Database! PNG downloaded & caption copied. Opening WhatsApp...');
       }
     } catch (err) {
       if (err.name !== 'AbortError') {
         console.error('WhatsApp share error:', err);
         window.open(getWhatsAppUrl(), '_blank');
+        setShareSuccessMessage('✅ Voucher saved to Database! Opening WhatsApp...');
       }
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  // WhatsApp Text-Only Share
+  const handleWhatsAppTextOnlyShare = async () => {
+    setIsSharing(true);
+    setShareSuccessMessage('');
+
+    try {
+      await ensureSavedToDatabase();
+      window.open(getWhatsAppUrl(), '_blank');
+      setShareSuccessMessage('✅ Voucher saved to Database & opening WhatsApp...');
+    } catch (err) {
+      console.error('WhatsApp text share error:', err);
+      window.open(getWhatsAppUrl(), '_blank');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  // SMS Share Handler
+  const handleSMSShare = async () => {
+    setIsSharing(true);
+    setShareSuccessMessage('');
+
+    try {
+      await ensureSavedToDatabase();
+      window.location.href = getSMSUrl();
+      setShareSuccessMessage('✅ Voucher saved to Database & opening SMS app!');
+    } catch (err) {
+      console.error('SMS share error:', err);
+      window.location.href = getSMSUrl();
     } finally {
       setIsSharing(false);
     }
@@ -132,7 +164,6 @@ Thank you for choosing Yogakshema Tours & Travels!`;
     setShareSuccessMessage('');
 
     try {
-      // Save voucher to database when sharing
       await ensureSavedToDatabase();
 
       const dataUrl = await generateVoucherCanvasDataUrl(voucherData, 2.5);
@@ -146,18 +177,19 @@ Thank you for choosing Yogakshema Tours & Travels!`;
           title: `Digital Gift Card - ${voucherData.voucherNo}`,
           text: formattedMessage
         });
-        setShareSuccessMessage('Voucher shared successfully and saved to Database!');
+        setShareSuccessMessage('✅ Voucher shared successfully and saved to Database!');
       } else if (navigator.share) {
         await navigator.share({
           title: `Digital Gift Card - ${voucherData.voucherNo}`,
           text: formattedMessage
         });
-        setShareSuccessMessage('Voucher details shared successfully and saved to Database!');
+        setShareSuccessMessage('✅ Voucher details shared successfully and saved to Database!');
       } else {
         await navigator.clipboard.writeText(formattedMessage);
         setCopied(true);
         setTimeout(() => setCopied(false), 3000);
         window.open(getWhatsAppUrl(), '_blank');
+        setShareSuccessMessage('✅ Voucher saved to Database! Text copied & opening WhatsApp...');
       }
     } catch (err) {
       if (err.name !== 'AbortError') {
@@ -176,6 +208,7 @@ Thank you for choosing Yogakshema Tours & Travels!`;
       await navigator.clipboard.writeText(formattedMessage);
       setCopied(true);
       setTimeout(() => setCopied(false), 3000);
+      setShareSuccessMessage('✅ Voucher saved to Database & details copied to clipboard!');
     } catch (e) {
       console.error(e);
     }
@@ -187,7 +220,7 @@ Thank you for choosing Yogakshema Tours & Travels!`;
     try {
       await ensureSavedToDatabase();
       await exportVoucherPNG(voucherData);
-      setShareSuccessMessage('Voucher saved to Database and PNG saved to device gallery!');
+      setShareSuccessMessage('✅ Voucher saved to Database & PNG saved to device gallery!');
     } catch (err) {
       console.error(err);
     } finally {
@@ -323,7 +356,7 @@ Thank you for choosing Yogakshema Tours & Travels!`;
                 {isSharing ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
-                    <span>Preparing Mobile Share...</span>
+                    <span>Saving to DB & Preparing Share...</span>
                   </>
                 ) : (
                   <>
@@ -344,20 +377,21 @@ Thank you for choosing Yogakshema Tours & Travels!`;
                   <span>WhatsApp (Image + Text)</span>
                 </button>
 
-                <a
-                  href={getSMSUrl()}
-                  className="py-3 px-3 bg-slate-800 hover:bg-slate-750 text-white font-bold text-xs rounded-xl border border-slate-700 flex items-center justify-center gap-1.5 transition text-center"
+                <button
+                  onClick={handleSMSShare}
+                  disabled={isSharing}
+                  className="py-3 px-3 bg-slate-800 hover:bg-slate-750 text-white font-bold text-xs rounded-xl border border-slate-700 flex items-center justify-center gap-1.5 transition text-center disabled:opacity-60"
                 >
                   <Send className="w-4 h-4 text-blue-400 shrink-0" />
                   <span>Send via SMS</span>
-                </a>
+                </button>
               </div>
 
               {/* SAVE TO PHONE GALLERY */}
               <button
                 onClick={handleDownloadPNG}
                 disabled={isSharing}
-                className="w-full py-2.5 px-3 bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs rounded-xl border border-slate-300 shadow-sm flex items-center justify-center gap-2 transition"
+                className="w-full py-2.5 px-3 bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs rounded-xl border border-slate-300 shadow-sm flex items-center justify-center gap-2 transition disabled:opacity-60"
               >
                 <Download className="w-4 h-4 text-amber-600" />
                 <span>Save High-Res PNG to Phone Gallery</span>
@@ -381,7 +415,7 @@ Thank you for choosing Yogakshema Tours & Travels!`;
                 {isSharing ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin text-white" />
-                    <span>Preparing Image & Caption...</span>
+                    <span>Saving to DB & Preparing WhatsApp...</span>
                   </>
                 ) : (
                   <>
@@ -392,20 +426,19 @@ Thank you for choosing Yogakshema Tours & Travels!`;
               </button>
 
               <div className="flex items-center gap-2 pt-1">
-                <a
-                  href={getWhatsAppUrl()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => ensureSavedToDatabase()}
-                  className="flex-1 py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition"
+                <button
+                  onClick={handleWhatsAppTextOnlyShare}
+                  disabled={isSharing}
+                  className="flex-1 py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition disabled:opacity-60"
                 >
                   <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Text Only Link</span>
-                </a>
+                  <span>Text Only WhatsApp Link</span>
+                </button>
 
                 <button
                   onClick={handleCopyDetails}
-                  className="py-2.5 px-3 bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs rounded-xl flex items-center gap-1.5 transition"
+                  disabled={isSharing}
+                  className="py-2.5 px-3 bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs rounded-xl flex items-center gap-1.5 transition disabled:opacity-60"
                 >
                   {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-slate-600" />}
                   <span>{copied ? 'Copied!' : 'Copy Text'}</span>

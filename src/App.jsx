@@ -322,6 +322,9 @@ function AppContent() {
         ...prev.filter(v => (v.voucherNo || '').trim().toUpperCase() !== cleanNo)
       ]);
       
+      // Keep mobile modal voucher updated with saved item
+      setMobileModalVoucherData(savedItem);
+
       await refreshDBAndAdvanceSerial();
       return { success: true, data: savedItem };
     } catch (err) {
@@ -398,7 +401,8 @@ function AppContent() {
 
   // Open Mobile Share / Add to Mobile modal
   const handleOpenMobileModal = (targetVoucher = null) => {
-    setMobileModalVoucherData(targetVoucher || voucherData);
+    const vToShare = targetVoucher ? { ...targetVoucher } : { ...voucherData };
+    setMobileModalVoucherData(vToShare);
     setIsMobileModalOpen(true);
   };
 
